@@ -59,6 +59,29 @@ CREATE TRIGGER trg_profiles_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_updated_at();
 
+-- Trigger to strictly guarantee organization_id immutability & prevent unauthorized role escalation
+CREATE OR REPLACE FUNCTION public.protect_profile_immutability()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- organization_id can NEVER be modified once assigned
+  IF NEW.organization_id <> OLD.organization_id THEN
+    RAISE EXCEPTION 'organization_id is strictly immutable.';
+  END IF;
+
+  -- STAFF users can NEVER escalate their own role
+  IF NEW.role <> OLD.role AND auth.uid() = OLD.id AND OLD.role = 'STAFF' THEN
+    RAISE EXCEPTION 'STAFF users cannot modify their assigned role.';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_protect_profile_immutability
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.protect_profile_immutability();
+
 -- ==============================================================================
 -- 5. Helper Functions for Non-Recursive Row Level Security
 -- Uses SECURITY DEFINER with fixed search_path to prevent recursive RLS queries.
@@ -311,7 +334,7 @@ ALTER TABLE public.calculator_sessions ENABLE ROW LEVEL SECURITY;
 
 -- ==============================================================================
 -- 14. Row Level Security Policies
--- Strictly enforces organization-level data isolation.
+-- Strictly enforces organization-level data isolation and relation verification.
 -- Anonymous users have ZERO read permissions on private tables.
 -- ==============================================================================
 
@@ -338,8 +361,13 @@ CREATE POLICY "Users can update their own profile or admins can update org profi
     (organization_id = public.get_auth_organization_id() AND public.get_auth_role() IN ('OWNER', 'ADMIN'))
   )
   WITH CHECK (
-    id = auth.uid() OR 
-    (organization_id = public.get_auth_organization_id() AND public.get_auth_role() IN ('OWNER', 'ADMIN'))
+    -- organization_id must always match current organization (strictly immutable)
+    organization_id = public.get_auth_organization_id()
+    AND (
+      -- Non-admin cannot modify role
+      (id = auth.uid() AND role = public.get_auth_role())
+      OR public.get_auth_role() IN ('OWNER', 'ADMIN')
+    )
   );
 
 -- --- LEADS POLICIES ---
@@ -371,38 +399,59 @@ CREATE POLICY "Admins and owners can delete leads of their organization"
     public.get_auth_role() IN ('OWNER', 'ADMIN')
   );
 
--- --- LEAD NOTES POLICIES ---
+-- --- LEAD NOTES POLICIES (Cross-Tenant Relationship Verified) ---
 CREATE POLICY "Authenticated users can view notes of their organization"
   ON public.lead_notes
   FOR SELECT
   TO authenticated
   USING (organization_id = public.get_auth_organization_id());
 
-CREATE POLICY "Authenticated users can insert notes for their organization"
+CREATE POLICY "Authenticated users can insert notes for leads in their organization"
   ON public.lead_notes
   FOR INSERT
   TO authenticated
-  WITH CHECK (organization_id = public.get_auth_organization_id());
+  WITH CHECK (
+    organization_id = public.get_auth_organization_id()
+    AND EXISTS (
+      SELECT 1 FROM public.leads
+      WHERE leads.id = lead_notes.lead_id
+        AND leads.organization_id = public.get_auth_organization_id()
+    )
+  );
 
--- --- FOLLOW UPS POLICIES ---
+-- --- FOLLOW UPS POLICIES (Cross-Tenant Relationship Verified) ---
 CREATE POLICY "Authenticated users can view follow-ups of their organization"
   ON public.follow_ups
   FOR SELECT
   TO authenticated
   USING (organization_id = public.get_auth_organization_id());
 
-CREATE POLICY "Authenticated users can insert follow-ups for their organization"
+CREATE POLICY "Authenticated users can insert follow-ups for leads in their organization"
   ON public.follow_ups
   FOR INSERT
   TO authenticated
-  WITH CHECK (organization_id = public.get_auth_organization_id());
+  WITH CHECK (
+    organization_id = public.get_auth_organization_id()
+    AND EXISTS (
+      SELECT 1 FROM public.leads
+      WHERE leads.id = follow_ups.lead_id
+        AND leads.organization_id = public.get_auth_organization_id()
+    )
+  );
 
 CREATE POLICY "Authenticated users can update follow-ups of their organization"
   ON public.follow_ups
   FOR UPDATE
   TO authenticated
   USING (organization_id = public.get_auth_organization_id())
-  WITH CHECK (organization_id = public.get_auth_organization_id());
+  WITH CHECK (
+    organization_id = public.get_auth_organization_id()
+    AND EXISTS (
+      SELECT 1 FROM public.leads
+      WHERE leads.id = follow_ups.lead_id
+        AND leads.organization_id = public.get_auth_organization_id()
+    )
+  );
 
 CREATE POLICY "Admins and owners can delete follow-ups of their organization"
   ON public.follow_ups
@@ -413,32 +462,63 @@ CREATE POLICY "Admins and owners can delete follow-ups of their organization"
     public.get_auth_role() IN ('OWNER', 'ADMIN')
   );
 
--- --- CAMPAIGNS POLICIES ---
+-- --- CAMPAIGNS POLICIES (Role-Restricted Management) ---
 CREATE POLICY "Authenticated users can view campaigns of their organization"
   ON public.campaigns
   FOR SELECT
   TO authenticated
   USING (organization_id = public.get_auth_organization_id());
 
-CREATE POLICY "Authenticated users can manage campaigns for their organization"
+CREATE POLICY "Admins and owners can insert campaigns for their organization"
   ON public.campaigns
-  FOR ALL
+  FOR INSERT
   TO authenticated
-  USING (organization_id = public.get_auth_organization_id())
-  WITH CHECK (organization_id = public.get_auth_organization_id());
+  WITH CHECK (
+    organization_id = public.get_auth_organization_id() AND 
+    public.get_auth_role() IN ('OWNER', 'ADMIN')
+  );
 
--- --- LEAD EVENTS POLICIES (Immutable Audit Log) ---
+CREATE POLICY "Admins and owners can update campaigns of their organization"
+  ON public.campaigns
+  FOR UPDATE
+  TO authenticated
+  USING (
+    organization_id = public.get_auth_organization_id() AND 
+    public.get_auth_role() IN ('OWNER', 'ADMIN')
+  )
+  WITH CHECK (
+    organization_id = public.get_auth_organization_id() AND 
+    public.get_auth_role() IN ('OWNER', 'ADMIN')
+  );
+
+CREATE POLICY "Admins and owners can delete campaigns of their organization"
+  ON public.campaigns
+  FOR DELETE
+  TO authenticated
+  USING (
+    organization_id = public.get_auth_organization_id() AND 
+    public.get_auth_role() IN ('OWNER', 'ADMIN')
+  );
+
+-- --- LEAD EVENTS POLICIES (Immutable Audit Log, Cross-Tenant Relationship Verified) ---
 CREATE POLICY "Authenticated users can view events of their organization"
   ON public.lead_events
   FOR SELECT
   TO authenticated
   USING (organization_id = public.get_auth_organization_id());
 
-CREATE POLICY "Authenticated users can insert events for their organization"
+CREATE POLICY "Authenticated users can insert events for leads in their organization"
   ON public.lead_events
   FOR INSERT
   TO authenticated
-  WITH CHECK (organization_id = public.get_auth_organization_id());
+  WITH CHECK (
+    organization_id = public.get_auth_organization_id()
+    AND EXISTS (
+      SELECT 1 FROM public.leads
+      WHERE leads.id = lead_events.lead_id
+        AND leads.organization_id = public.get_auth_organization_id()
+    )
+  );
 
 -- --- CALCULATOR SESSIONS POLICIES ---
 -- Anonymous visitors may record anonymous session usage
