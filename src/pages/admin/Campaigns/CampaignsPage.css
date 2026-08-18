@@ -1,0 +1,224 @@
+/* ==========================================================================
+   Campaign Attribution Page — Dedicated Styles
+   ========================================================================== */
+
+/* Data Integrity Notice */
+.attribution-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-6);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.attribution-notice svg {
+  width: 18px;
+  height: 18px;
+  color: var(--color-primary);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.attribution-notice strong {
+  color: var(--text-primary);
+}
+
+/* Group-by Selector */
+.group-selector {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.group-btn {
+  padding: 4px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.group-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.group-btn.active {
+  background: var(--color-primary-light);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* Source key cell */
+.source-key-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.source-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-tracked {
+  background-color: var(--color-primary);
+}
+
+.dot-direct {
+  background-color: var(--text-muted);
+}
+
+.source-key-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+/* Centered columns */
+.col-center {
+  text-align: center;
+}
+
+/* Conversion Rate Pill */
+.conv-rate-pill {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+}
+
+.conv-rate-pill.good {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.conv-rate-pill.ok {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.conv-rate-pill.none {
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+/* Expanded attribution row */
+.attribution-row.expanded {
+  background: var(--bg-app);
+}
+
+.attribution-detail-row td {
+  padding: 0;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.attribution-detail-panel {
+  padding: var(--space-4) var(--space-5);
+  border-top: 2px solid var(--color-primary-light);
+}
+
+.detail-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .detail-metrics-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.detail-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-metric-label {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.detail-metric-value {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Loan Type Breakdown Bar Chart */
+.loan-type-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.loan-type-bar-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.loan-type-bar-label {
+  width: 90px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.loan-type-bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--border-subtle);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.loan-type-bar-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+.loan-type-bar-count {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--text-secondary);
+  min-width: 18px;
+  text-align: right;
+}
+
+/* Footer Methodology Note */
+.attribution-footer-note {
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  background: var(--bg-app);
+  line-height: 1.55;
+}
+
+.attribution-footer-note strong {
+  color: var(--text-secondary);
+}
