@@ -3,10 +3,10 @@ import React from 'react';
 export const PrivacyPage: React.FC = () => {
   return (
     <div className="placeholder-page">
-      <span className="placeholder-badge">Stage 1 Foundation</span>
-      <h1 className="placeholder-title">Privacy Policy</h1>
+      <span className="placeholder-badge">Transparency & Privacy</span>
+      <h1 className="placeholder-title">Credzo Finance Privacy Policy</h1>
       <p className="placeholder-desc">
-        Information collection transparency, data handling principles, and customer rights.
+        We respect your privacy. Learn how your enquiry information is collected, used, and protected.
       </p>
       <div className="placeholder-box">
         <p><strong>Route:</strong> <code>/privacy</code></p>

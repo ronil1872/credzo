@@ -4,10 +4,10 @@ import { Link } from 'react-router-dom';
 export const CalculatorPage: React.FC = () => {
   return (
     <div className="placeholder-page">
-      <span className="placeholder-badge">Stage 1 Foundation</span>
-      <h1 className="placeholder-title">Loan Calculator</h1>
+      <span className="placeholder-badge">Stage 3 Preview</span>
+      <h1 className="placeholder-title">Credzo Finance Loan Calculator</h1>
       <p className="placeholder-desc">
-        Calculate your estimated EMI transparently using reducing-balance formula.
+        Calculate your estimated EMI transparently using standard reducing-balance formula.
       </p>
       <div className="placeholder-box">
         <p><strong>Route:</strong> <code>/calculator</code></p>

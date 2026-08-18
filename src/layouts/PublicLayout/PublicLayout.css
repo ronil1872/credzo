@@ -2,15 +2,19 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  background-color: var(--bg-main);
 }
 
+/* Header */
 .public-header {
   height: var(--header-height);
-  background: var(--bg-surface);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--border-subtle);
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 100;
 }
 
 .public-header-inner {
@@ -21,35 +25,42 @@
 }
 
 .public-brand {
+  display: flex;
+  align-items: center;
+  gap: 2px;
   font-size: var(--font-size-xl);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: var(--text-primary);
   text-decoration: none;
 }
 
+.brand-name {
+  color: var(--text-primary);
+}
+
 .brand-accent {
   color: var(--color-primary);
+  font-weight: 800;
 }
 
 .public-nav {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-6);
 }
 
 .nav-link {
   font-size: var(--font-size-sm);
   font-weight: 500;
   color: var(--text-secondary);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  transition: all 0.15s ease;
+  text-decoration: none;
+  transition: color 0.15s ease;
+  padding: var(--space-2) 0;
 }
 
 .nav-link:hover {
-  color: var(--text-primary);
-  background-color: var(--bg-surface-subtle);
+  color: var(--color-primary);
 }
 
 .nav-link.active {
@@ -57,19 +68,87 @@
   font-weight: 600;
 }
 
-.admin-link {
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  background: transparent;
   border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  padding: 6px;
 }
 
+.hamburger-bar {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background-color: var(--text-primary);
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+/* Mobile Navigation Dropdown */
+.mobile-nav-menu {
+  position: absolute;
+  top: var(--header-height);
+  left: 0;
+  right: 0;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-4) 0 var(--space-6);
+  z-index: 99;
+}
+
+.mobile-nav-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.mobile-nav-link {
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  color: var(--text-primary);
+  padding: var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+}
+
+.mobile-nav-link:hover,
+.mobile-nav-link.active {
+  background-color: var(--bg-surface-subtle);
+  color: var(--color-primary);
+}
+
+.mobile-nav-cta {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 768px) {
+  .desktop-nav {
+    display: none !important;
+  }
+  .mobile-menu-toggle {
+    display: flex;
+  }
+}
+
+/* Main Content Area */
 .public-main {
   flex: 1;
 }
 
+/* Footer */
 .public-footer {
   background: var(--bg-surface);
   border-top: 1px solid var(--border-subtle);
-  padding: var(--space-10) 0 var(--space-6);
+  padding: var(--space-12) 0 var(--space-6);
   margin-top: auto;
 }
 
@@ -97,8 +176,20 @@
 
 .footer-desc {
   font-size: var(--font-size-sm);
-  color: var(--text-muted);
-  max-width: 320px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  max-width: 360px;
+  margin-bottom: var(--space-3);
+}
+
+.footer-tagline-badge {
+  display: inline-block;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--color-primary);
+  background-color: var(--color-primary-light);
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-full);
 }
 
 .footer-links-col h4 {
@@ -120,14 +211,21 @@
 .footer-links-col a {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.15s ease;
 }
 
 .footer-links-col a:hover {
   color: var(--color-primary);
 }
 
+.footer-staff-link {
+  color: var(--text-muted) !important;
+  font-size: var(--font-size-xs) !important;
+}
+
 .footer-disclaimer {
-  padding: var(--space-4);
+  padding: var(--space-5);
   background: var(--bg-surface-subtle);
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
