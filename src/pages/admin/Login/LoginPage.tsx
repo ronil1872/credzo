@@ -90,8 +90,8 @@ export const LoginPage: React.FC = () => {
               <line x1="12" y1="8" x2="12.01" y2="8" />
             </svg>
             <p>
-              <strong>Setup Notice:</strong> Supabase credentials are not yet configured in <code>.env</code>.
-              Add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to enable live staff authentication.
+              <strong>Setup Notice:</strong> Supabase credentials are not yet configured in <code>.env.local</code>.
+              Add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> to enable live staff authentication.
             </p>
           </div>
         )}

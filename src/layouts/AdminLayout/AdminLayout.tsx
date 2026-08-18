@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks';
+import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
 import './AdminLayout.css';
 
 export const AdminLayout: React.FC = () => {
@@ -26,15 +27,15 @@ export const AdminLayout: React.FC = () => {
 
   return (
     <div className="admin-layout">
-      <aside className="admin-sidebar">
+      <aside className="admin-sidebar" aria-label="CRM Navigation">
         <div className="admin-sidebar-header">
-          <Link to="/admin" className="admin-brand">
+          <Link to="/admin" className="admin-brand" aria-label="Credzo CRM Home">
             <span className="brand-primary">Credzo</span>
             <span className="brand-accent">CRM</span>
           </Link>
         </div>
 
-        <nav className="admin-sidebar-nav">
+        <nav className="admin-sidebar-nav" aria-label="Main navigation">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || 
               (item.path !== '/admin' && location.pathname.startsWith(item.path));
@@ -43,6 +44,7 @@ export const AdminLayout: React.FC = () => {
                 key={item.path}
                 to={item.path}
                 className={`admin-nav-item ${isActive ? 'active' : ''}`}
+                aria-current={isActive ? 'page' : undefined}
               >
                 {item.label}
               </Link>
@@ -58,8 +60,9 @@ export const AdminLayout: React.FC = () => {
             type="button"
             className="admin-logout-btn"
             onClick={handleSignOut}
+            aria-label="Sign out of CRM"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
               <polyline points="16 17 21 12 16 7" />
               <line x1="21" y1="12" x2="9" y2="12" />
@@ -70,14 +73,14 @@ export const AdminLayout: React.FC = () => {
       </aside>
 
       <div className="admin-content-wrapper">
-        <header className="admin-topbar">
+        <header className="admin-topbar" role="banner">
           <div className="admin-topbar-title">
             <span>Sales & Lead Management Portal</span>
           </div>
           <div className="admin-topbar-user">
             <div className="user-profile-info">
               <span className="user-name">{displayName}</span>
-              <span className={`user-role-badge role-${roleName.toLowerCase()}`}>
+              <span className={`user-role-badge role-${roleName.toLowerCase()}`} aria-label={`Role: ${roleName}`}>
                 {roleName}
               </span>
             </div>
@@ -85,15 +88,17 @@ export const AdminLayout: React.FC = () => {
               type="button"
               className="topbar-signout-btn"
               onClick={handleSignOut}
-              title="Sign Out of CRM"
+              aria-label="Sign out of CRM"
             >
               Sign Out
             </button>
           </div>
         </header>
 
-        <main className="admin-main">
-          <Outlet />
+        <main className="admin-main" id="main-content" role="main">
+          <ErrorBoundary context="Admin Page">
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </div>

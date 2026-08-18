@@ -26,7 +26,7 @@ export const PublicLayout: React.FC = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="public-nav desktop-nav">
+          <nav className="public-nav desktop-nav" aria-label="Primary navigation">
             <Link 
               to="/calculator" 
               className={`nav-link ${location.pathname === '/calculator' ? 'active' : ''}`}
@@ -107,7 +107,7 @@ export const PublicLayout: React.FC = () => {
       </header>
 
       {/* Main Page Content */}
-      <main className="public-main">
+      <main className="public-main" id="main-content" role="main">
         <Outlet />
       </main>
 
