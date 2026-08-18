@@ -5,11 +5,13 @@ import { formatIndianCurrency, formatTenureDisplay } from '../../lib/calculator'
 interface CalculatorResultProps {
   result: LoanCalculationResult;
   loanTypeLabel: string;
+  justCalculated?: boolean;
 }
 
 export const CalculatorResult: React.FC<CalculatorResultProps> = ({
   result,
   loanTypeLabel,
+  justCalculated = false,
 }) => {
   const [showCallbackNotice, setShowCallbackNotice] = useState(false);
 
@@ -20,9 +22,16 @@ export const CalculatorResult: React.FC<CalculatorResultProps> = ({
   return (
     <div className="calculator-result-container" id="calculator-result">
       {/* 1. Main Highlight Card */}
-      <div className="result-highlight-card">
+      <div className={`result-highlight-card ${justCalculated ? 'recalculated-pulse' : ''}`}>
         <div className="result-card-header">
-          <span className="result-badge">Illustrative Estimate</span>
+          <div className="badge-group">
+            <span className="result-badge">Illustrative Estimate</span>
+            {justCalculated && (
+              <span className="result-updated-badge" aria-live="polite">
+                Updated
+              </span>
+            )}
+          </div>
           <span className="result-loan-type">{loanTypeLabel}</span>
         </div>
 

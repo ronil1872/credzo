@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   LoanType,
   EmploymentType,
+  LoanCalculationResult,
   CalculatorValidationErrors,
 } from '../../types';
 import {
@@ -14,7 +15,7 @@ import { CalculatorResult } from './CalculatorResult';
 import './LoanCalculator.css';
 
 export const LoanCalculator: React.FC = () => {
-  // 1. Core State
+  // 1. Core Input State
   const [loanType, setLoanType] = useState<LoanType>('personal');
   const [principal, setPrincipal] = useState<number>(
     LOAN_CONFIGURATIONS.personal.defaultAmount
@@ -27,43 +28,90 @@ export const LoanCalculator: React.FC = () => {
   const [employmentType, setEmploymentType] = useState<EmploymentType>('salaried');
   const [city, setCity] = useState<string>('');
   const [errors, setErrors] = useState<CalculatorValidationErrors>({});
-
-  // 2. Loan Type Change Handler
-  const handleLoanTypeChange = (newType: LoanType) => {
-    const config = LOAN_CONFIGURATIONS[newType];
-    setLoanType(newType);
-
-    // Adjust principal if out of bounds for the new loan category
-    if (principal < config.minAmount || principal > config.maxAmount) {
-      setPrincipal(config.defaultAmount);
-    }
-
-    // Adjust tenure if out of bounds for the new category
-    if (tenureMonths < config.minTenureMonths || tenureMonths > config.maxTenureMonths) {
-      setTenureMonths(config.defaultTenureMonths);
-    }
-
-    setErrors((prev) => ({ ...prev, loanType: undefined }));
-  };
-
-  // 3. Computed Calculation Result (Real-time reactivity)
-  const calculationResult = useMemo(() => {
-    const config = LOAN_CONFIGURATIONS[loanType];
+  
+  // 2. Explicit Calculation Result State & Recalculation Visual Feedback
+  const [calculationResult, setCalculationResult] = useState<LoanCalculationResult>(() => {
+    const config = LOAN_CONFIGURATIONS.personal;
     return calculateLoan({
-      loanType,
-      principal,
+      loanType: 'personal',
+      principal: config.defaultAmount,
       annualInterestRate: config.defaultRate,
-      tenureMonths,
+      tenureMonths: config.defaultTenureMonths,
+    });
+  });
+  const [justCalculated, setJustCalculated] = useState<boolean>(false);
+
+  // 3. Helper to Recompute and Set Result
+  const executeCalculation = (
+    currentLoanType: LoanType,
+    currentPrincipal: number,
+    currentTenure: number
+  ) => {
+    const config = LOAN_CONFIGURATIONS[currentLoanType];
+    const newResult = calculateLoan({
+      loanType: currentLoanType,
+      principal: currentPrincipal,
+      annualInterestRate: config.defaultRate,
+      tenureMonths: currentTenure,
       monthlyIncome: monthlyIncome ? parseInt(monthlyIncome, 10) : undefined,
       existingEmi: existingEmi ? parseInt(existingEmi, 10) : undefined,
       employmentType,
       city,
     });
-  }, [loanType, principal, tenureMonths, monthlyIncome, existingEmi, employmentType, city]);
+    setCalculationResult(newResult);
+  };
 
-  // 4. Handle Form Calculate Trigger
-  const handleCalculate = (e: React.FormEvent) => {
-    e.preventDefault();
+  // 4. Loan Type Change Handler
+  const handleLoanTypeChange = (newType: LoanType) => {
+    const config = LOAN_CONFIGURATIONS[newType];
+    setLoanType(newType);
+
+    let newPrincipal = principal;
+    if (principal < config.minAmount || principal > config.maxAmount) {
+      newPrincipal = config.defaultAmount;
+      setPrincipal(newPrincipal);
+    }
+
+    let newTenure = tenureMonths;
+    if (tenureMonths < config.minTenureMonths || tenureMonths > config.maxTenureMonths) {
+      newTenure = config.defaultTenureMonths;
+      setTenureMonths(newTenure);
+    }
+
+    setErrors((prev) => ({
+      ...prev,
+      loanType: undefined,
+      principal: undefined,
+      tenureMonths: undefined,
+    }));
+
+    executeCalculation(newType, newPrincipal, newTenure);
+  };
+
+  // 5. Principal / Amount Change Handler
+  const handlePrincipalChange = (newAmount: number) => {
+    setPrincipal(newAmount);
+    setErrors((prev) => ({ ...prev, principal: undefined }));
+    if (newAmount > 0) {
+      executeCalculation(loanType, newAmount, tenureMonths);
+    }
+  };
+
+  // 6. Tenure Change Handler
+  const handleTenureChange = (newTenure: number) => {
+    setTenureMonths(newTenure);
+    setErrors((prev) => ({ ...prev, tenureMonths: undefined }));
+    if (newTenure > 0) {
+      executeCalculation(loanType, principal, newTenure);
+    }
+  };
+
+  // 7. Explicit "Calculate Estimated EMI" Button & Form Submission Handler
+  const handleCalculate = (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+
     const validationErrors = validateCalculatorInput({
       loanType,
       principal,
@@ -79,7 +127,16 @@ export const LoanCalculator: React.FC = () => {
 
     setErrors({});
 
-    // Smooth scroll to result on mobile viewports
+    // Explicitly recalculate using the exact current state values
+    executeCalculation(loanType, principal, tenureMonths);
+
+    // Provide visual feedback (pulse animation on result card)
+    setJustCalculated(true);
+    setTimeout(() => {
+      setJustCalculated(false);
+    }, 800);
+
+    // Smooth scroll down to result on mobile screens
     if (window.innerWidth < 960) {
       const resultElement = document.getElementById('calculator-result');
       if (resultElement) {
@@ -110,14 +167,8 @@ export const LoanCalculator: React.FC = () => {
             city={city}
             errors={errors}
             onLoanTypeChange={handleLoanTypeChange}
-            onPrincipalChange={(val) => {
-              setPrincipal(val);
-              setErrors((prev) => ({ ...prev, principal: undefined }));
-            }}
-            onTenureChange={(val) => {
-              setTenureMonths(val);
-              setErrors((prev) => ({ ...prev, tenureMonths: undefined }));
-            }}
+            onPrincipalChange={handlePrincipalChange}
+            onTenureChange={handleTenureChange}
             onIncomeChange={(val) => {
               setMonthlyIncome(val);
               setErrors((prev) => ({ ...prev, monthlyIncome: undefined }));
@@ -133,11 +184,12 @@ export const LoanCalculator: React.FC = () => {
         </div>
       </div>
 
-      {/* Right / Bottom Column: Live Calculated Results */}
+      {/* Right / Bottom Column: Calculated Results */}
       <div className="calculator-result-column">
         <CalculatorResult
           result={calculationResult}
           loanTypeLabel={LOAN_CONFIGURATIONS[loanType].label}
+          justCalculated={justCalculated}
         />
       </div>
     </div>
