@@ -100,13 +100,13 @@ export const CalculatorInputs: React.FC<CalculatorInputsProps> = ({
           <span className="highlight-value">{formatIndianCurrency(principal)}</span>
         </div>
 
-        <div className="amount-input-wrapper">
-          <span className="amount-prefix">₹</span>
+        <div className={`currency-input-group currency-input-group-lg ${errors.principal ? 'input-error' : ''}`}>
+          <span className="currency-prefix" aria-hidden="true">₹</span>
           <input
             id="loan-amount-input"
             type="text"
             inputMode="numeric"
-            className={`text-input amount-text-input ${errors.principal ? 'input-error' : ''}`}
+            className="currency-input-field currency-amount-field"
             value={principal > 0 ? principal.toString() : ''}
             placeholder="Enter loan amount"
             onChange={handleAmountInputChange}
@@ -187,13 +187,13 @@ export const CalculatorInputs: React.FC<CalculatorInputsProps> = ({
             <label htmlFor="monthly-income" className="input-label">
               Monthly Income (₹)
             </label>
-            <div className="amount-input-wrapper">
-              <span className="amount-prefix">₹</span>
+            <div className={`currency-input-group ${errors.monthlyIncome ? 'input-error' : ''}`}>
+              <span className="currency-prefix" aria-hidden="true">₹</span>
               <input
                 id="monthly-income"
                 type="text"
                 inputMode="numeric"
-                className={`text-input ${errors.monthlyIncome ? 'input-error' : ''}`}
+                className="currency-input-field"
                 placeholder="e.g. 50,000"
                 value={monthlyIncome}
                 onChange={(e) => onIncomeChange(e.target.value.replace(/[^0-9]/g, ''))}
@@ -207,13 +207,13 @@ export const CalculatorInputs: React.FC<CalculatorInputsProps> = ({
             <label htmlFor="existing-emi" className="input-label">
               Existing Monthly EMI (₹)
             </label>
-            <div className="amount-input-wrapper">
-              <span className="amount-prefix">₹</span>
+            <div className={`currency-input-group ${errors.existingEmi ? 'input-error' : ''}`}>
+              <span className="currency-prefix" aria-hidden="true">₹</span>
               <input
                 id="existing-emi"
                 type="text"
                 inputMode="numeric"
-                className={`text-input ${errors.existingEmi ? 'input-error' : ''}`}
+                className="currency-input-field"
                 placeholder="e.g. 10,000"
                 value={existingEmi}
                 onChange={(e) => onExistingEmiChange(e.target.value.replace(/[^0-9]/g, ''))}
