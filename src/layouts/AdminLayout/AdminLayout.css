@@ -1,11 +1,11 @@
 .admin-layout {
   display: flex;
   min-height: 100vh;
-  background-color: var(--bg-main);
+  background-color: var(--bg-app);
 }
 
 .admin-sidebar {
-  width: 240px;
+  width: 250px;
   background: var(--bg-surface);
   border-right: 1px solid var(--border-subtle);
   display: flex;
@@ -34,19 +34,27 @@
   align-items: center;
   gap: var(--space-2);
   font-size: var(--font-size-lg);
-  font-weight: 700;
+  font-weight: 800;
   text-decoration: none;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.brand-primary {
+  color: var(--color-primary);
+}
+
+.brand-accent {
   color: var(--text-primary);
 }
 
 .admin-badge {
   font-size: var(--font-size-xs);
-  background: var(--bg-surface-subtle);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .admin-sidebar-nav {
@@ -60,15 +68,16 @@
 .admin-nav-item {
   display: block;
   padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-size: var(--font-size-sm);
   font-weight: 500;
+  text-decoration: none;
   transition: all 0.15s ease;
 }
 
 .admin-nav-item:hover {
-  background-color: var(--bg-surface-subtle);
+  background-color: var(--bg-subtle);
   color: var(--text-primary);
 }
 
@@ -81,11 +90,40 @@
 .admin-sidebar-footer {
   padding: var(--space-4) var(--space-3);
   border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }
 
 .back-to-site {
   color: var(--text-muted);
   font-size: var(--font-size-xs);
+}
+
+.admin-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.admin-logout-btn:hover {
+  background-color: var(--color-danger-light);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.admin-logout-btn svg {
+  width: 15px;
+  height: 15px;
 }
 
 .admin-content-wrapper {
@@ -107,17 +145,68 @@
 
 .admin-topbar-title {
   font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.admin-topbar-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.user-profile-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.user-name {
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .user-role-badge {
-  font-size: var(--font-size-xs);
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-  padding: var(--space-1) var(--space-3);
+  font-size: 0.625rem; /* 10px */
+  font-weight: 700;
+  padding: 2px 8px;
   border-radius: var(--radius-full);
-  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.role-owner {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.role-admin {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.role-staff {
+  background-color: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+
+.topbar-signout-btn {
+  background: none;
+  border: 1px solid var(--border-subtle);
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.topbar-signout-btn:hover {
+  background-color: var(--color-danger-light);
+  border-color: rgba(220, 38, 38, 0.2);
+  color: var(--color-danger);
 }
 
 .admin-main {
