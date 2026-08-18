@@ -1,0 +1,7 @@
+.calculator-page {
+  padding: var(--space-8) 0 var(--space-16);
+}
+
+.calculator-page-header {
+  margin-bottom: var(--space-8);
+}

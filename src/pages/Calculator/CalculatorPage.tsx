@@ -1,20 +1,21 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { LoanCalculator } from '../../components/LoanCalculator/LoanCalculator';
+import { SectionHeader } from '../../components/ui';
+import './CalculatorPage.css';
 
 export const CalculatorPage: React.FC = () => {
   return (
-    <div className="placeholder-page">
-      <span className="placeholder-badge">Stage 3 Preview</span>
-      <h1 className="placeholder-title">Credzo Finance Loan Calculator</h1>
-      <p className="placeholder-desc">
-        Calculate your estimated EMI transparently using standard reducing-balance formula.
-      </p>
-      <div className="placeholder-box">
-        <p><strong>Route:</strong> <code>/calculator</code></p>
-        <p><strong>Status:</strong> Route placeholder verified. Ready for Stage 3 interactive calculation engine.</p>
-        <div style={{ marginTop: '1rem' }}>
-          <Link to="/result" style={{ fontWeight: 600 }}>&rarr; Preview Result Page</Link>
-        </div>
+    <div className="calculator-page">
+      <div className="container">
+        <SectionHeader
+          badge="100% Free & Transparent"
+          title="Loan EMI Calculator"
+          subtitle="Calculate your estimated monthly installment, total interest, and complete repayment breakdown in real time."
+          centered={true}
+          className="calculator-page-header"
+        />
+
+        <LoanCalculator />
       </div>
     </div>
   );

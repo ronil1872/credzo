@@ -202,10 +202,10 @@ export const LandingPage: React.FC = () => {
                 <div className="preview-metric">
                   <span className="preview-metric-label">Estimated Monthly EMI</span>
                   <div className="preview-metric-value">
-                    ₹16,134<span className="preview-metric-unit">/month</span>
+                    ₹16,607<span className="preview-metric-unit">/month</span>
                   </div>
                   <div className="preview-rate-note">
-                    Illustrative rate: 10% p.a.
+                    Illustrative rate: 12% p.a.
                   </div>
                 </div>
                 <div className="preview-grid">
@@ -219,7 +219,7 @@ export const LandingPage: React.FC = () => {
                   </div>
                   <div className="preview-subitem">
                     <span className="subitem-label">Est. Total Interest</span>
-                    <span className="subitem-val">₹80,824</span>
+                    <span className="subitem-val">₹97,852</span>
                   </div>
                 </div>
                 <div className="preview-footer">
