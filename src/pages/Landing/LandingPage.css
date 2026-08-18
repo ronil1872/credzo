@@ -203,6 +203,13 @@
   color: var(--text-secondary);
 }
 
+.preview-rate-note {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin-top: 4px;
+}
+
 .preview-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

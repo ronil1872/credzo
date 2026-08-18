@@ -195,7 +195,7 @@ export const LandingPage: React.FC = () => {
           <div className="hero-preview-wrapper">
             <div className="hero-preview-card">
               <div className="preview-header">
-                <span className="preview-label">Illustrative Calculation Preview</span>
+                <span className="preview-label">Illustrative Example</span>
                 <span className="preview-tag">Personal Loan</span>
               </div>
               <div className="preview-body">
@@ -203,6 +203,9 @@ export const LandingPage: React.FC = () => {
                   <span className="preview-metric-label">Estimated Monthly EMI</span>
                   <div className="preview-metric-value">
                     ₹16,134<span className="preview-metric-unit">/month</span>
+                  </div>
+                  <div className="preview-rate-note">
+                    Illustrative rate: 10% p.a.
                   </div>
                 </div>
                 <div className="preview-grid">
@@ -221,7 +224,7 @@ export const LandingPage: React.FC = () => {
                 </div>
                 <div className="preview-footer">
                   <Link to="/calculator" className="preview-action-link">
-                    Customize your loan parameters &rarr;
+                    Calculate your own estimate &rarr;
                   </Link>
                 </div>
               </div>
