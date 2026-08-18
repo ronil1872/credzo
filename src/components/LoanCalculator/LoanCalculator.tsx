@@ -189,6 +189,11 @@ export const LoanCalculator: React.FC = () => {
         <CalculatorResult
           result={calculationResult}
           loanTypeLabel={LOAN_CONFIGURATIONS[loanType].label}
+          loanType={loanType}
+          monthlyIncome={monthlyIncome}
+          existingEmi={existingEmi}
+          employmentType={employmentType}
+          city={city}
           justCalculated={justCalculated}
         />
       </div>

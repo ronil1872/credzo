@@ -1,22 +1,49 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LoanCalculationResult } from '../../types';
 import { formatIndianCurrency, formatTenureDisplay } from '../../lib/calculator';
 
 interface CalculatorResultProps {
   result: LoanCalculationResult;
   loanTypeLabel: string;
+  loanType?: string;
+  monthlyIncome?: string;
+  existingEmi?: string;
+  employmentType?: string;
+  city?: string;
   justCalculated?: boolean;
 }
 
 export const CalculatorResult: React.FC<CalculatorResultProps> = ({
   result,
   loanTypeLabel,
+  loanType = 'personal',
+  monthlyIncome = '',
+  existingEmi = '',
+  employmentType = 'salaried',
+  city = '',
   justCalculated = false,
 }) => {
-  const [showCallbackNotice, setShowCallbackNotice] = useState(false);
+  const navigate = useNavigate();
 
   const handleCallbackClick = () => {
-    setShowCallbackNotice(true);
+    const snapshot = {
+      result,
+      loanTypeLabel,
+      loanType,
+      monthlyIncome,
+      existingEmi,
+      employmentType,
+      city,
+    };
+
+    try {
+      sessionStorage.setItem('credzo_calculation_snapshot', JSON.stringify(snapshot));
+    } catch {
+      // Ignore sessionStorage issues
+    }
+
+    navigate('/result', { state: snapshot });
   };
 
   return (
@@ -119,7 +146,7 @@ export const CalculatorResult: React.FC<CalculatorResultProps> = ({
         </p>
       </div>
 
-      {/* 4. Future Callback CTA */}
+      {/* 4. Lead Capture Callback CTA */}
       <div className="result-callback-card">
         <h4 className="callback-title">
           Want a free callback to discuss your loan options?
@@ -131,19 +158,11 @@ export const CalculatorResult: React.FC<CalculatorResultProps> = ({
         <button
           type="button"
           className="btn btn-primary btn-md btn-full-width"
+          id="request-callback-btn"
           onClick={handleCallbackClick}
         >
           Request a Free Callback &rarr;
         </button>
-
-        {showCallbackNotice && (
-          <div className="callback-stage-notice" role="status">
-            <span className="notice-badge">Stage 3 Notice</span>
-            <p>
-              Lead capture and callback scheduling will be connected in <strong>Stage 5</strong>. No customer information is saved at this stage.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
