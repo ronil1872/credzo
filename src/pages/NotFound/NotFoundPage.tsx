@@ -80,6 +80,21 @@ export const NotFoundPage: React.FC = () => {
           Loan Calculator
         </Link>
         <Link
+          to="/insurance"
+          style={{
+            padding: '0.625rem 1.25rem',
+            background: 'var(--bg-surface)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '9999px',
+            fontWeight: 600,
+            fontSize: '0.875rem',
+            textDecoration: 'none',
+          }}
+        >
+          Insurance
+        </Link>
+        <Link
           to="/contact"
           style={{
             padding: '0.625rem 1.25rem',

@@ -336,9 +336,12 @@ export const LandingPage: React.FC = () => {
             <p className="cta-subtitle">
               It takes about 60 seconds. Free estimate. No obligation.
             </p>
-            <div className="cta-action">
+            <div className="cta-action" style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
               <Button to="/calculator" variant="primary" size="lg" className="cta-btn">
                 Calculate My EMI &rarr;
+              </Button>
+              <Button to="/contact" variant="secondary" size="lg">
+                Contact Support
               </Button>
             </div>
           </div>

@@ -442,6 +442,92 @@ export interface Database {
         };
         Relationships: [];
       };
+      insurance_leads: {
+        Row: {
+          id: string;
+          organization_id: string;
+          full_name: string;
+          mobile: string;
+          email: string | null;
+          insurance_type: string;
+          city: string | null;
+          preferred_callback_date: string | null;
+          preferred_callback_time: string | null;
+          message: string | null;
+          status: LeadStatus;
+          lead_source: string;
+          campaign: string | null;
+          ad: string | null;
+          utm_source: string | null;
+          utm_medium: string | null;
+          utm_campaign: string | null;
+          utm_content: string | null;
+          utm_term: string | null;
+          consent: boolean;
+          consent_timestamp: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id?: string;
+          full_name: string;
+          mobile: string;
+          email?: string | null;
+          insurance_type: string;
+          city?: string | null;
+          preferred_callback_date?: string | null;
+          preferred_callback_time?: string | null;
+          message?: string | null;
+          status?: LeadStatus;
+          lead_source?: string;
+          campaign?: string | null;
+          ad?: string | null;
+          utm_source?: string | null;
+          utm_medium?: string | null;
+          utm_campaign?: string | null;
+          utm_content?: string | null;
+          utm_term?: string | null;
+          consent?: boolean;
+          consent_timestamp?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          full_name?: string;
+          mobile?: string;
+          email?: string | null;
+          insurance_type?: string;
+          city?: string | null;
+          preferred_callback_date?: string | null;
+          preferred_callback_time?: string | null;
+          message?: string | null;
+          status?: LeadStatus;
+          lead_source?: string;
+          campaign?: string | null;
+          ad?: string | null;
+          utm_source?: string | null;
+          utm_medium?: string | null;
+          utm_campaign?: string | null;
+          utm_content?: string | null;
+          utm_term?: string | null;
+          consent?: boolean;
+          consent_timestamp?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'insurance_leads_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -469,6 +555,7 @@ export interface Database {
 export type Organization = Database['public']['Tables']['organizations']['Row'];
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type Lead = Database['public']['Tables']['leads']['Row'];
+export type InsuranceLead = Database['public']['Tables']['insurance_leads']['Row'];
 export type LeadNote = Database['public']['Tables']['lead_notes']['Row'];
 export type FollowUp = Database['public']['Tables']['follow_ups']['Row'];
 export type Campaign = Database['public']['Tables']['campaigns']['Row'];
@@ -477,7 +564,9 @@ export type CalculatorSession = Database['public']['Tables']['calculator_session
 
 // Convenience Insert Types
 export type LeadInsert = Database['public']['Tables']['leads']['Insert'];
+export type InsuranceLeadInsert = Database['public']['Tables']['insurance_leads']['Insert'];
 export type LeadNoteInsert = Database['public']['Tables']['lead_notes']['Insert'];
 export type FollowUpInsert = Database['public']['Tables']['follow_ups']['Insert'];
 export type LeadEventInsert = Database['public']['Tables']['lead_events']['Insert'];
 export type CalculatorSessionInsert = Database['public']['Tables']['calculator_sessions']['Insert'];
+

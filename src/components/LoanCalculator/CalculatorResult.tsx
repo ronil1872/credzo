@@ -1,12 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LoanCalculationResult } from '../../types';
-import { formatIndianCurrency, formatTenureDisplay } from '../../lib/calculator';
+import { LoanCalculationResult, LoanType } from '../../types';
+import { formatIndianCurrency, formatTenureDisplay, LOAN_CONFIGURATIONS } from '../../lib/calculator';
 
 interface CalculatorResultProps {
-  result: LoanCalculationResult;
+  result: LoanCalculationResult | null;
   loanTypeLabel: string;
-  loanType?: string;
+  loanType?: LoanType;
   monthlyIncome?: string;
   existingEmi?: string;
   employmentType?: string;
@@ -26,7 +26,12 @@ export const CalculatorResult: React.FC<CalculatorResultProps> = ({
 }) => {
   const navigate = useNavigate();
 
+  const hasValidResult = Boolean(result && result.monthlyEmi > 0 && result.principal > 0);
+  const defaultRate = LOAN_CONFIGURATIONS[loanType]?.defaultRate ?? 12;
+
   const handleCallbackClick = () => {
+    if (!hasValidResult || !result) return;
+
     const snapshot = {
       result,
       loanTypeLabel,
@@ -52,8 +57,10 @@ export const CalculatorResult: React.FC<CalculatorResultProps> = ({
       <div className={`result-highlight-card ${justCalculated ? 'recalculated-pulse' : ''}`}>
         <div className="result-card-header">
           <div className="badge-group">
-            <span className="result-badge">Illustrative Estimate</span>
-            {justCalculated && (
+            <span className="result-badge">
+              {hasValidResult ? 'Illustrative Estimate' : 'Estimate Preview'}
+            </span>
+            {justCalculated && hasValidResult && (
               <span className="result-updated-badge" aria-live="polite">
                 Updated
               </span>
@@ -64,67 +71,96 @@ export const CalculatorResult: React.FC<CalculatorResultProps> = ({
 
         <div className="result-main-metric">
           <span className="metric-caption">Estimated Monthly EMI</span>
-          <div className="metric-amount">
-            {formatIndianCurrency(result.monthlyEmi)}
-            <span className="metric-unit">/month</span>
+          <div className={`metric-amount ${!hasValidResult ? 'metric-amount-empty' : ''}`}>
+            {hasValidResult && result ? (
+              <>
+                {formatIndianCurrency(result.monthlyEmi)}
+                <span className="metric-unit">/month</span>
+              </>
+            ) : (
+              '—'
+            )}
           </div>
           <p className="metric-subtext">
-            Based on an illustrative rate of {result.annualInterestRate}% p.a.
+            {hasValidResult && result
+              ? `Based on an illustrative rate of ${result.annualInterestRate}% p.a.`
+              : 'Enter your loan details to see your estimated EMI'}
           </p>
         </div>
 
         {/* Breakdown Progress Bar */}
-        <div className="repayment-breakdown-bar">
-          <div
-            className="bar-segment principal-bar"
-            style={{ width: `${result.principalPercentage}%` }}
-            title={`Principal: ${result.principalPercentage}%`}
-          />
-          <div
-            className="bar-segment interest-bar"
-            style={{ width: `${result.interestPercentage}%` }}
-            title={`Interest: ${result.interestPercentage}%`}
-          />
-        </div>
+        {hasValidResult && result ? (
+          <>
+            <div className="repayment-breakdown-bar">
+              <div
+                className="bar-segment principal-bar"
+                style={{ width: `${result.principalPercentage}%` }}
+                title={`Principal: ${result.principalPercentage}%`}
+              />
+              <div
+                className="bar-segment interest-bar"
+                style={{ width: `${result.interestPercentage}%` }}
+                title={`Interest: ${result.interestPercentage}%`}
+              />
+            </div>
 
-        {/* Legend */}
-        <div className="breakdown-legend">
-          <div className="legend-item">
-            <span className="legend-dot dot-principal" />
-            <span className="legend-text">
-              Principal: {formatIndianCurrency(result.principal)} ({result.principalPercentage}%)
-            </span>
+            {/* Legend */}
+            <div className="breakdown-legend">
+              <div className="legend-item">
+                <span className="legend-dot dot-principal" />
+                <span className="legend-text">
+                  Principal: {formatIndianCurrency(result.principal)} ({result.principalPercentage}%)
+                </span>
+              </div>
+              <div className="legend-item">
+                <span className="legend-dot dot-interest" />
+                <span className="legend-text">
+                  Total Interest: {formatIndianCurrency(result.totalInterest)} ({result.interestPercentage}%)
+                </span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="breakdown-empty-placeholder">
+            <div className="repayment-breakdown-bar empty-breakdown-bar" />
+            <p className="empty-breakdown-note">
+              Principal and interest breakdown will appear here once calculated.
+            </p>
           </div>
-          <div className="legend-item">
-            <span className="legend-dot dot-interest" />
-            <span className="legend-text">
-              Total Interest: {formatIndianCurrency(result.totalInterest)} ({result.interestPercentage}%)
-            </span>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* 2. Structured Breakdown Summary Grid */}
       <div className="result-summary-grid">
         <div className="summary-item">
           <span className="summary-label">Loan Amount</span>
-          <span className="summary-val">{formatIndianCurrency(result.principal)}</span>
+          <span className="summary-val">
+            {hasValidResult && result ? formatIndianCurrency(result.principal) : '—'}
+          </span>
         </div>
         <div className="summary-item">
           <span className="summary-label">Illustrative Rate</span>
-          <span className="summary-val">{result.annualInterestRate}% p.a.</span>
+          <span className="summary-val">
+            {hasValidResult && result ? `${result.annualInterestRate}% p.a.` : `${defaultRate}% p.a.`}
+          </span>
         </div>
         <div className="summary-item">
           <span className="summary-label">Tenure</span>
-          <span className="summary-val">{formatTenureDisplay(result.tenureMonths)}</span>
+          <span className="summary-val">
+            {hasValidResult && result ? formatTenureDisplay(result.tenureMonths) : '—'}
+          </span>
         </div>
         <div className="summary-item highlight-item">
           <span className="summary-label">Est. Total Interest</span>
-          <span className="summary-val">{formatIndianCurrency(result.totalInterest)}</span>
+          <span className="summary-val">
+            {hasValidResult && result ? formatIndianCurrency(result.totalInterest) : '—'}
+          </span>
         </div>
         <div className="summary-item highlight-item">
           <span className="summary-label">Est. Total Repayment</span>
-          <span className="summary-val">{formatIndianCurrency(result.totalRepayment)}</span>
+          <span className="summary-val">
+            {hasValidResult && result ? formatIndianCurrency(result.totalRepayment) : '—'}
+          </span>
         </div>
       </div>
 
@@ -152,16 +188,19 @@ export const CalculatorResult: React.FC<CalculatorResultProps> = ({
           Want a free callback to discuss your loan options?
         </h4>
         <p className="callback-subtitle">
-          Speak with a loan specialist to explore options suited to your requirement. Free & no obligation.
+          {hasValidResult
+            ? 'Speak with a loan specialist to explore options suited to your requirement. Free & no obligation.'
+            : 'Enter your loan details above to calculate an estimate and request a free callback.'}
         </p>
         
         <button
           type="button"
-          className="btn btn-primary btn-md btn-full-width"
+          className={`btn ${hasValidResult ? 'btn-primary' : 'btn-secondary'} btn-md btn-full-width`}
           id="request-callback-btn"
+          disabled={!hasValidResult}
           onClick={handleCallbackClick}
         >
-          Request a Free Callback &rarr;
+          {hasValidResult ? 'Request a Free Callback →' : 'Enter Details to Request Callback'}
         </button>
       </div>
     </div>

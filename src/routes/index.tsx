@@ -16,6 +16,7 @@ import { ResultPage } from '../pages/Result/ResultPage';
 import { PrivacyPage } from '../pages/Privacy/PrivacyPage';
 import { TermsPage } from '../pages/Terms/TermsPage';
 import { ContactPage } from '../pages/Contact/ContactPage';
+import { InsurancePage } from '../pages/Insurance/InsurancePage';
 import { NotFoundPage } from '../pages/NotFound/NotFoundPage';
 
 // Admin Pages
@@ -26,6 +27,7 @@ import { LeadDetailPage } from '../pages/admin/LeadDetail/LeadDetailPage';
 import { FollowUpsPage } from '../pages/admin/FollowUps/FollowUpsPage';
 import { CampaignsPage } from '../pages/admin/Campaigns/CampaignsPage';
 import { SettingsPage } from '../pages/admin/Settings/SettingsPage';
+import { InsuranceLeadsPage } from '../pages/admin/Insurance/InsuranceLeadsPage';
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -36,6 +38,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="/" element={<LandingPage />} />
           <Route path="/calculator" element={<CalculatorPage />} />
           <Route path="/result" element={<ResultPage />} />
+          <Route path="/insurance" element={<InsurancePage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/contact" element={<ContactPage />} />
@@ -49,6 +52,7 @@ export const AppRoutes: React.FC = () => {
             <Route index element={<DashboardPage />} />
             <Route path="leads" element={<LeadsPage />} />
             <Route path="leads/:id" element={<LeadDetailPage />} />
+            <Route path="insurance" element={<InsuranceLeadsPage />} />
             <Route path="follow-ups" element={<FollowUpsPage />} />
             <Route path="campaigns" element={<CampaignsPage />} />
             <Route path="settings" element={<SettingsPage />} />

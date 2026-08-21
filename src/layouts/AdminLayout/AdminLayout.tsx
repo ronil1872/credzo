@@ -17,6 +17,7 @@ export const AdminLayout: React.FC = () => {
   const navItems = [
     { label: 'Dashboard', path: '/admin' },
     { label: 'Leads', path: '/admin/leads' },
+    { label: 'Insurance Leads', path: '/admin/insurance' },
     { label: 'Follow-ups', path: '/admin/follow-ups' },
     { label: 'Campaigns', path: '/admin/campaigns' },
     { label: 'Settings', path: '/admin/settings' },

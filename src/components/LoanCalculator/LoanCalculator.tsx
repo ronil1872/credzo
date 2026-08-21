@@ -15,30 +15,18 @@ import { CalculatorResult } from './CalculatorResult';
 import './LoanCalculator.css';
 
 export const LoanCalculator: React.FC = () => {
-  // 1. Core Input State
+  // 1. Core Input State - Starts empty to provide a clean, unbiased user experience
   const [loanType, setLoanType] = useState<LoanType>('personal');
-  const [principal, setPrincipal] = useState<number>(
-    LOAN_CONFIGURATIONS.personal.defaultAmount
-  );
-  const [tenureMonths, setTenureMonths] = useState<number>(
-    LOAN_CONFIGURATIONS.personal.defaultTenureMonths
-  );
+  const [principal, setPrincipal] = useState<number>(0);
+  const [tenureMonths, setTenureMonths] = useState<number>(0);
   const [monthlyIncome, setMonthlyIncome] = useState<string>('');
   const [existingEmi, setExistingEmi] = useState<string>('');
   const [employmentType, setEmploymentType] = useState<EmploymentType>('salaried');
   const [city, setCity] = useState<string>('');
   const [errors, setErrors] = useState<CalculatorValidationErrors>({});
   
-  // 2. Explicit Calculation Result State & Recalculation Visual Feedback
-  const [calculationResult, setCalculationResult] = useState<LoanCalculationResult>(() => {
-    const config = LOAN_CONFIGURATIONS.personal;
-    return calculateLoan({
-      loanType: 'personal',
-      principal: config.defaultAmount,
-      annualInterestRate: config.defaultRate,
-      tenureMonths: config.defaultTenureMonths,
-    });
-  });
+  // 2. Explicit Calculation Result State - Starts null until user enters valid values
+  const [calculationResult, setCalculationResult] = useState<LoanCalculationResult | null>(null);
   const [justCalculated, setJustCalculated] = useState<boolean>(false);
 
   // 3. Helper to Recompute and Set Result
@@ -47,6 +35,11 @@ export const LoanCalculator: React.FC = () => {
     currentPrincipal: number,
     currentTenure: number
   ) => {
+    if (currentPrincipal <= 0 || currentTenure <= 0) {
+      setCalculationResult(null);
+      return;
+    }
+
     const config = LOAN_CONFIGURATIONS[currentLoanType];
     const newResult = calculateLoan({
       loanType: currentLoanType,
@@ -67,14 +60,16 @@ export const LoanCalculator: React.FC = () => {
     setLoanType(newType);
 
     let newPrincipal = principal;
-    if (principal < config.minAmount || principal > config.maxAmount) {
-      newPrincipal = config.defaultAmount;
+    if (principal > 0) {
+      if (principal < config.minAmount) newPrincipal = config.minAmount;
+      if (principal > config.maxAmount) newPrincipal = config.maxAmount;
       setPrincipal(newPrincipal);
     }
 
     let newTenure = tenureMonths;
-    if (tenureMonths < config.minTenureMonths || tenureMonths > config.maxTenureMonths) {
-      newTenure = config.defaultTenureMonths;
+    if (tenureMonths > 0) {
+      if (tenureMonths < config.minTenureMonths) newTenure = config.minTenureMonths;
+      if (tenureMonths > config.maxTenureMonths) newTenure = config.maxTenureMonths;
       setTenureMonths(newTenure);
     }
 
@@ -85,15 +80,21 @@ export const LoanCalculator: React.FC = () => {
       tenureMonths: undefined,
     }));
 
-    executeCalculation(newType, newPrincipal, newTenure);
+    if (newPrincipal > 0 && newTenure > 0) {
+      executeCalculation(newType, newPrincipal, newTenure);
+    } else {
+      setCalculationResult(null);
+    }
   };
 
   // 5. Principal / Amount Change Handler
   const handlePrincipalChange = (newAmount: number) => {
     setPrincipal(newAmount);
     setErrors((prev) => ({ ...prev, principal: undefined }));
-    if (newAmount > 0) {
+    if (newAmount > 0 && tenureMonths > 0) {
       executeCalculation(loanType, newAmount, tenureMonths);
+    } else {
+      setCalculationResult(null);
     }
   };
 
@@ -101,8 +102,10 @@ export const LoanCalculator: React.FC = () => {
   const handleTenureChange = (newTenure: number) => {
     setTenureMonths(newTenure);
     setErrors((prev) => ({ ...prev, tenureMonths: undefined }));
-    if (newTenure > 0) {
+    if (principal > 0 && newTenure > 0) {
       executeCalculation(loanType, principal, newTenure);
+    } else {
+      setCalculationResult(null);
     }
   };
 
@@ -153,7 +156,7 @@ export const LoanCalculator: React.FC = () => {
           <div className="calculator-card-header">
             <h2 className="calculator-card-title">Loan Parameters</h2>
             <p className="calculator-card-subtitle">
-              Adjust loan amount and tenure to view your estimated installment.
+              Enter your required loan amount and select tenure to view your estimated installment.
             </p>
           </div>
 

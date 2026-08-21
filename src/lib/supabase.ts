@@ -3,7 +3,9 @@ import { Database } from '../types/database';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabasePublishableKey =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  '';
 
 /**
  * Checks whether Supabase environment variables have been configured.
@@ -19,7 +21,7 @@ export const isSupabaseConfigured = (): boolean => {
 if (!isSupabaseConfigured()) {
   console.warn(
     '[Credzo Finance] Supabase credentials not found. ' +
-    'Configure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in .env.local.'
+    'Configure VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (or VITE_SUPABASE_ANON_KEY) in .env.local.'
   );
 }
 

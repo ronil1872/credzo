@@ -1,32 +1,24 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
-import { formatIndianCurrency } from '../../../lib/calculator';
-import { Lead, LeadStatus, LeadScore } from '../../../types/database';
-import { LeadDetailModal } from '../components/LeadDetailModal';
+import { InsuranceLead, LeadStatus } from '../../../types/database';
+import { InsuranceLeadDetailModal } from '../components/InsuranceLeadDetailModal';
 import '../crm.css';
 
 const PAGE_SIZE = 20;
-
-const LOAN_TYPE_LABELS: Record<string, string> = {
-  personal: 'Personal',
-  home: 'Home',
-  car: 'Car',
-  business: 'Business',
-  education: 'Education',
-  gold: 'Gold',
-  lap: 'LAP',
-  other: 'Other',
-};
 
 const ALL_STATUSES: LeadStatus[] = [
   'NEW',
   'CONTACTED',
   'INTERESTED',
-  'DOCUMENTS',
-  'APPLICATION',
-  'APPROVED',
-  'DISBURSED',
   'LOST',
+];
+
+const STANDARD_INSURANCE_TYPES = [
+  'Health Insurance',
+  'Life Insurance',
+  'Term Insurance',
+  'Motor Insurance',
+  'Other Insurance',
 ];
 
 const formatDateTime = (iso: string) => {
@@ -56,26 +48,74 @@ const formatDate = (iso?: string | null) => {
   }
 };
 
-export const LeadsPage: React.FC = () => {
-  const [leads, setLeads] = useState<Lead[]>([]);
+interface InsuranceStats {
+  total: number;
+  newCount: number;
+  contactedCount: number;
+  interestedCount: number;
+  lostCount: number;
+}
+
+export const InsuranceLeadsPage: React.FC = () => {
+  const [leads, setLeads] = useState<InsuranceLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Aggregated Pipeline Stats
+  const [stats, setStats] = useState<InsuranceStats>({
+    total: 0,
+    newCount: 0,
+    contactedCount: 0,
+    interestedCount: 0,
+    lostCount: 0,
+  });
+
   // Filters
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const [tempFilter, setTempFilter] = useState<string>('');
-  const [loanTypeFilter, setLoanTypeFilter] = useState<string>('');
+  const [insuranceTypeFilter, setInsuranceTypeFilter] = useState<string>('');
+
+  // Available insurance types derived from data + standard types
+  const [availableTypes, setAvailableTypes] = useState<string[]>(STANDARD_INSURANCE_TYPES);
 
   // Sorting
-  const [sortCol, setSortCol] = useState<'created_at' | 'requested_amount' | 'name'>('created_at');
+  const [sortCol, setSortCol] = useState<'created_at' | 'full_name' | 'insurance_type' | 'status'>('created_at');
   const [sortAsc, setSortAsc] = useState(false);
 
   // Selected lead for modal view
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+
+  // Fetch summary counts for the statistics cards
+  const fetchStats = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('insurance_leads')
+        .select('status, insurance_type');
+
+      if (!error && data) {
+        const rows = data as { status: string; insurance_type: string }[];
+        const counts: InsuranceStats = {
+          total: rows.length,
+          newCount: rows.filter((r) => r.status === 'NEW').length,
+          contactedCount: rows.filter((r) => r.status === 'CONTACTED').length,
+          interestedCount: rows.filter((r) => r.status === 'INTERESTED').length,
+          lostCount: rows.filter((r) => r.status === 'LOST').length,
+        };
+        setStats(counts);
+
+        // Dynamically merge any unique types found in existing database records
+        const uniqueTypes = Array.from(
+          new Set([...STANDARD_INSURANCE_TYPES, ...rows.map((r) => r.insurance_type).filter(Boolean)])
+        );
+        setAvailableTypes(uniqueTypes);
+      }
+    } catch (err) {
+      console.warn('[Credzo CRM] Failed to fetch insurance stats:', err);
+    }
+  }, []);
 
   const fetchLeads = useCallback(async (isManualRefresh = false) => {
     if (!isSupabaseConfigured()) {
@@ -93,39 +133,45 @@ export const LeadsPage: React.FC = () => {
 
     try {
       let query = supabase
-        .from('leads')
+        .from('insurance_leads')
         .select('*', { count: 'exact' })
         .order(sortCol, { ascending: sortAsc })
         .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
 
-      if (statusFilter) query = query.eq('status', statusFilter as LeadStatus);
-      if (tempFilter) query = query.eq('lead_score', tempFilter as LeadScore);
-      if (loanTypeFilter) query = query.eq('loan_type', loanTypeFilter);
+      if (statusFilter) {
+        query = query.eq('status', statusFilter as LeadStatus);
+      }
+      if (insuranceTypeFilter) {
+        query = query.eq('insurance_type', insuranceTypeFilter);
+      }
       if (search.trim()) {
         const s = search.trim();
-        query = query.or(`name.ilike.%${s}%,mobile.ilike.%${s}%,city.ilike.%${s}%`);
+        query = query.or(
+          `full_name.ilike.%${s}%,mobile.ilike.%${s}%,city.ilike.%${s}%,insurance_type.ilike.%${s}%`
+        );
       }
 
       const { data, count, error } = await query;
       if (error) {
-        console.error('[Credzo CRM] Leads fetch error:', error);
-        setErrorMsg(`Failed to load leads: ${error.message}`);
+        console.error('[Credzo CRM] Insurance leads fetch error:', error);
+        setErrorMsg(`Failed to load insurance leads: ${error.message}`);
       } else if (data) {
-        setLeads(data as Lead[]);
+        setLeads(data as InsuranceLead[]);
         setTotal(count ?? 0);
       }
     } catch (err) {
-      console.error('[Credzo CRM] Unexpected leads fetch error:', err);
-      setErrorMsg('Unexpected network error occurred while querying leads.');
+      console.error('[Credzo CRM] Unexpected insurance leads fetch error:', err);
+      setErrorMsg('Unexpected network error occurred while querying insurance leads.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [search, statusFilter, tempFilter, loanTypeFilter, sortCol, sortAsc, page]);
+  }, [search, statusFilter, insuranceTypeFilter, sortCol, sortAsc, page]);
 
   useEffect(() => {
     fetchLeads();
-  }, [fetchLeads]);
+    fetchStats();
+  }, [fetchLeads, fetchStats]);
 
   const handleSort = (col: typeof sortCol) => {
     if (col === sortCol) {
@@ -137,8 +183,9 @@ export const LeadsPage: React.FC = () => {
     setPage(0);
   };
 
-  const handleLeadUpdated = (updated: Lead) => {
+  const handleLeadUpdated = (updated: InsuranceLead) => {
     setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+    fetchStats();
   };
 
   const SortIcon = ({ col }: { col: typeof sortCol }) =>
@@ -146,12 +193,12 @@ export const LeadsPage: React.FC = () => {
 
   return (
     <div>
-      {/* Header */}
+      {/* 1. Header */}
       <div className="crm-page-header">
         <div>
-          <h1 className="crm-page-title">Lead Management</h1>
+          <h1 className="crm-page-title">Insurance Leads</h1>
           <p className="crm-page-subtitle">
-            {total} total loan enquiries in pipeline • View, filter, assign, and manage status
+            Customer insurance enquiries pipeline • View, filter, and update enquiry status
           </p>
         </div>
 
@@ -159,7 +206,10 @@ export const LeadsPage: React.FC = () => {
           <button
             type="button"
             className={`crm-refresh-btn ${refreshing ? 'spinning' : ''}`}
-            onClick={() => fetchLeads(true)}
+            onClick={() => {
+              fetchLeads(true);
+              fetchStats();
+            }}
             disabled={loading || refreshing}
             title="Refresh database records"
           >
@@ -178,26 +228,55 @@ export const LeadsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Error Alert */}
+      {/* 2. Pipeline Statistics Bar */}
+      <div className="crm-stats-grid" style={{ marginBottom: 'var(--space-6)' }}>
+        <div className="stat-card">
+          <span className="stat-label">Total Enquiries</span>
+          <span className="stat-value">{stats.total}</span>
+        </div>
+        <div className="stat-card stat-primary">
+          <span className="stat-label">New / Uncontacted</span>
+          <span className="stat-value" style={{ color: 'var(--color-primary)' }}>
+            {stats.newCount}
+          </span>
+        </div>
+        <div className="stat-card stat-warm">
+          <span className="stat-label">Contacted</span>
+          <span className="stat-value warm">{stats.contactedCount}</span>
+        </div>
+        <div className="stat-card" style={{ borderColor: 'rgba(22, 163, 74, 0.2)', background: 'linear-gradient(135deg, #f0fdf4 0%, var(--bg-surface) 100%)' }}>
+          <span className="stat-label">Interested</span>
+          <span className="stat-value" style={{ color: 'var(--color-success)' }}>
+            {stats.interestedCount}
+          </span>
+        </div>
+        <div className="stat-card" style={{ borderColor: 'rgba(100, 116, 139, 0.2)', background: 'linear-gradient(135deg, #f8fafc 0%, var(--bg-surface) 100%)' }}>
+          <span className="stat-label">Lost / Closed</span>
+          <span className="stat-value" style={{ color: 'var(--text-muted)' }}>
+            {stats.lostCount}
+          </span>
+        </div>
+      </div>
+
+      {/* 3. Error Alert */}
       {errorMsg && (
         <div className="form-alert-error" style={{ marginBottom: 'var(--space-6)' }} role="alert">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           <span>{errorMsg}</span>
         </div>
       )}
 
-      {/* Leads Management Card */}
+      {/* 4. Leads Management Card */}
       <div className="crm-card">
         {/* Filters Toolbar */}
         <div className="crm-filters-bar">
           <input
             type="search"
             className="crm-search-input"
-            placeholder="Search by applicant name, mobile number, or city..."
+            placeholder="Search by applicant name, mobile, city, or insurance type..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -221,37 +300,22 @@ export const LeadsPage: React.FC = () => {
           </select>
           <select
             className="crm-select"
-            value={tempFilter}
+            value={insuranceTypeFilter}
             onChange={(e) => {
-              setTempFilter(e.target.value);
+              setInsuranceTypeFilter(e.target.value);
               setPage(0);
             }}
           >
-            <option value="">All Priorities</option>
-            {(['HOT', 'WARM', 'COLD'] as LeadScore[]).map((t) => (
+            <option value="">All Insurance Types</option>
+            {availableTypes.map((t) => (
               <option key={t} value={t}>
-                {t === 'HOT' ? '🔥 Hot' : t === 'WARM' ? '🌡️ Warm' : '❄️ Cold'}
-              </option>
-            ))}
-          </select>
-          <select
-            className="crm-select"
-            value={loanTypeFilter}
-            onChange={(e) => {
-              setLoanTypeFilter(e.target.value);
-              setPage(0);
-            }}
-          >
-            <option value="">All Loan Types</option>
-            {Object.entries(LOAN_TYPE_LABELS).map(([v, label]) => (
-              <option key={v} value={v}>
-                {label}
+                {t}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Desktop & Tablet Table */}
+        {/* Desktop Table View */}
         <div className="leads-table-wrapper">
           <table className="leads-table">
             <thead>
@@ -263,24 +327,26 @@ export const LeadsPage: React.FC = () => {
                   Received <span className="sort-icon"><SortIcon col="created_at" /></span>
                 </th>
                 <th
-                  className={`sortable ${sortCol === 'name' ? 'th-active' : ''}`}
-                  onClick={() => handleSort('name')}
+                  className={`sortable ${sortCol === 'full_name' ? 'th-active' : ''}`}
+                  onClick={() => handleSort('full_name')}
                 >
-                  Applicant <span className="sort-icon"><SortIcon col="name" /></span>
+                  Applicant <span className="sort-icon"><SortIcon col="full_name" /></span>
                 </th>
                 <th>Mobile</th>
                 <th>City</th>
-                <th>Loan Type</th>
                 <th
-                  className={`sortable ${sortCol === 'requested_amount' ? 'th-active' : ''}`}
-                  onClick={() => handleSort('requested_amount')}
+                  className={`sortable ${sortCol === 'insurance_type' ? 'th-active' : ''}`}
+                  onClick={() => handleSort('insurance_type')}
                 >
-                  Amount <span className="sort-icon"><SortIcon col="requested_amount" /></span>
+                  Insurance Type <span className="sort-icon"><SortIcon col="insurance_type" /></span>
                 </th>
-                <th>Employment</th>
                 <th>Callback Schedule</th>
-                <th>Priority</th>
-                <th>Status</th>
+                <th
+                  className={`sortable ${sortCol === 'status' ? 'th-active' : ''}`}
+                  onClick={() => handleSort('status')}
+                >
+                  Status <span className="sort-icon"><SortIcon col="status" /></span>
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -288,7 +354,7 @@ export const LeadsPage: React.FC = () => {
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 11 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                       <td key={j}>
                         <div className="skeleton-bar" style={{ width: '80%', height: 14 }} />
                       </td>
@@ -297,7 +363,7 @@ export const LeadsPage: React.FC = () => {
                 ))
               ) : leads.length === 0 ? (
                 <tr>
-                  <td colSpan={11}>
+                  <td colSpan={8}>
                     <div className="empty-state">
                       <svg
                         className="empty-state-icon"
@@ -306,16 +372,13 @@ export const LeadsPage: React.FC = () => {
                         stroke="currentColor"
                         strokeWidth="1.5"
                       >
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                       </svg>
-                      <p className="empty-state-title">No leads found</p>
+                      <p className="empty-state-title">No insurance enquiries found</p>
                       <p className="empty-state-desc">
-                        {search || statusFilter || tempFilter || loanTypeFilter
-                          ? 'Try modifying or clearing your filters.'
-                          : 'Customer submissions will appear here automatically.'}
+                        {search || statusFilter || insuranceTypeFilter
+                          ? 'Try modifying or clearing your search filters.'
+                          : 'Customer submissions from the /insurance page will appear here automatically.'}
                       </p>
                     </div>
                   </td>
@@ -329,7 +392,7 @@ export const LeadsPage: React.FC = () => {
                   >
                     <td className="lead-date-cell">{formatDateTime(lead.created_at)}</td>
                     <td>
-                      <div className="lead-name-cell">{lead.name}</div>
+                      <div className="lead-name-cell">{lead.full_name}</div>
                       <span className="lead-ref-pill">#{lead.id.slice(0, 8).toUpperCase()}</span>
                     </td>
                     <td className="lead-mobile-cell" onClick={(e) => e.stopPropagation()}>
@@ -342,36 +405,17 @@ export const LeadsPage: React.FC = () => {
                     </td>
                     <td>{lead.city || '—'}</td>
                     <td>
-                      <span style={{ fontWeight: 600 }}>
-                        {LOAN_TYPE_LABELS[lead.loan_type] || lead.loan_type}
+                      <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
+                        {lead.insurance_type}
                       </span>
-                    </td>
-                    <td className="lead-amount-cell">
-                      {formatIndianCurrency(lead.requested_amount)}
-                    </td>
-                    <td>
-                      {lead.employment_type
-                        ? lead.employment_type.charAt(0).toUpperCase() +
-                          lead.employment_type.slice(1).replace('_', ' ')
-                        : '—'}
                     </td>
                     <td>
                       <div style={{ fontSize: 'var(--font-size-xs)' }}>
                         {formatDate(lead.preferred_callback_date)}
                       </div>
-                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                        {lead.preferred_callback_time || 'Morning'}
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+                        {lead.preferred_callback_time || '—'}
                       </div>
-                    </td>
-                    <td>
-                      <span className={`temp-badge ${lead.lead_score}`}>
-                        {lead.lead_score === 'HOT'
-                          ? '🔥'
-                          : lead.lead_score === 'WARM'
-                          ? '🌡️'
-                          : '❄️'}{' '}
-                        {lead.lead_score}
-                      </span>
                     </td>
                     <td>
                       <span className={`status-badge ${lead.status}`}>{lead.status}</span>
@@ -403,7 +447,7 @@ export const LeadsPage: React.FC = () => {
             ))
           ) : leads.length === 0 ? (
             <div className="empty-state">
-              <p className="empty-state-title">No leads found</p>
+              <p className="empty-state-title">No insurance enquiries found</p>
             </div>
           ) : (
             leads.map((lead) => (
@@ -414,7 +458,7 @@ export const LeadsPage: React.FC = () => {
               >
                 <div className="lead-mobile-header">
                   <div>
-                    <div className="lead-mobile-applicant">{lead.name}</div>
+                    <div className="lead-mobile-applicant">{lead.full_name}</div>
                     <div className="lead-mobile-city">
                       {lead.city ? `${lead.city} • ` : ''}+91 {lead.mobile}
                     </div>
@@ -424,21 +468,18 @@ export const LeadsPage: React.FC = () => {
 
                 <div className="lead-mobile-details">
                   <div>
-                    <span className="info-label">Requirement</span>
+                    <span className="info-label">Insurance Type</span>
                     <div style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                      {formatIndianCurrency(lead.requested_amount)}
-                    </div>
-                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                      {LOAN_TYPE_LABELS[lead.loan_type] || lead.loan_type}
+                      {lead.insurance_type}
                     </div>
                   </div>
                   <div>
-                    <span className="info-label">Callback</span>
+                    <span className="info-label">Callback Schedule</span>
                     <div style={{ fontWeight: 600 }}>
                       {formatDate(lead.preferred_callback_date)}
                     </div>
-                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                      {lead.preferred_callback_time || 'Morning'}
+                    <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
+                      {lead.preferred_callback_time || '—'}
                     </div>
                   </div>
                 </div>
@@ -464,7 +505,7 @@ export const LeadsPage: React.FC = () => {
         <div className="pagination-bar">
           <span>
             Showing {total === 0 ? 0 : page * PAGE_SIZE + 1}–
-            {Math.min((page + 1) * PAGE_SIZE, total)} of {total} leads
+            {Math.min((page + 1) * PAGE_SIZE, total)} of {total} insurance enquiries
           </span>
           <div className="pagination-controls">
             <button
@@ -488,7 +529,7 @@ export const LeadsPage: React.FC = () => {
       </div>
 
       {/* Modal View for In-place Inspection & Quick Updates */}
-      <LeadDetailModal
+      <InsuranceLeadDetailModal
         leadId={selectedLeadId}
         onClose={() => setSelectedLeadId(null)}
         onLeadUpdated={handleLeadUpdated}

@@ -97,7 +97,9 @@ export const CalculatorInputs: React.FC<CalculatorInputsProps> = ({
           <label htmlFor="loan-amount-input" className="input-label">
             Loan Amount
           </label>
-          <span className="highlight-value">{formatIndianCurrency(principal)}</span>
+          <span className="highlight-value">
+            {principal > 0 ? formatIndianCurrency(principal) : '—'}
+          </span>
         </div>
 
         <div className={`currency-input-group currency-input-group-lg ${errors.principal ? 'input-error' : ''}`}>
@@ -120,7 +122,7 @@ export const CalculatorInputs: React.FC<CalculatorInputsProps> = ({
           min={currentConfig.minAmount}
           max={currentConfig.maxAmount}
           step={Math.max(10000, (currentConfig.maxAmount - currentConfig.minAmount) / 100)}
-          value={Math.min(currentConfig.maxAmount, Math.max(currentConfig.minAmount, principal || 0))}
+          value={principal > 0 ? Math.min(currentConfig.maxAmount, Math.max(currentConfig.minAmount, principal)) : currentConfig.minAmount}
           onChange={(e) => onPrincipalChange(parseInt(e.target.value, 10))}
           aria-label="Loan amount slider"
         />
@@ -138,7 +140,9 @@ export const CalculatorInputs: React.FC<CalculatorInputsProps> = ({
           <label htmlFor="loan-tenure-slider" className="input-label">
             Loan Tenure
           </label>
-          <span className="highlight-value">{formatTenureDisplay(tenureMonths)}</span>
+          <span className="highlight-value">
+            {tenureMonths > 0 ? formatTenureDisplay(tenureMonths) : 'Select tenure'}
+          </span>
         </div>
 
         {/* Tenure Presets */}
@@ -163,7 +167,7 @@ export const CalculatorInputs: React.FC<CalculatorInputsProps> = ({
           min={currentConfig.minTenureMonths}
           max={currentConfig.maxTenureMonths}
           step={loanType === 'gold' ? 3 : 6}
-          value={Math.min(currentConfig.maxTenureMonths, Math.max(currentConfig.minTenureMonths, tenureMonths))}
+          value={tenureMonths > 0 ? Math.min(currentConfig.maxTenureMonths, Math.max(currentConfig.minTenureMonths, tenureMonths)) : currentConfig.minTenureMonths}
           onChange={handleTenureSliderChange}
           aria-label="Loan tenure slider"
         />

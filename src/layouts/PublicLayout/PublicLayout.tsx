@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Button } from '../../components/ui';
 import './PublicLayout.css';
@@ -6,6 +6,19 @@ import './PublicLayout.css';
 export const PublicLayout: React.FC = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Smooth scroll to top or targeted hash anchor on route changes
+  useEffect(() => {
+    if (location.hash) {
+      const elementId = location.hash.replace('#', '');
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [location.pathname, location.hash]);
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
@@ -33,9 +46,18 @@ export const PublicLayout: React.FC = () => {
             >
               Calculator
             </Link>
-            <a href="/#how-it-works" className="nav-link">
+            <Link 
+              to="/insurance" 
+              className={`nav-link ${location.pathname === '/insurance' ? 'active' : ''}`}
+            >
+              Insurance
+            </Link>
+            <Link 
+              to="/#how-it-works" 
+              className="nav-link"
+            >
               How It Works
-            </a>
+            </Link>
             <Link 
               to="/contact" 
               className={`nav-link ${location.pathname === '/contact' ? 'active' : ''}`}
@@ -76,13 +98,20 @@ export const PublicLayout: React.FC = () => {
               >
                 Calculator
               </Link>
-              <a 
-                href="/#how-it-works" 
+              <Link 
+                to="/insurance" 
+                className={`mobile-nav-link ${location.pathname === '/insurance' ? 'active' : ''}`}
+                onClick={closeMobileMenu}
+              >
+                Insurance
+              </Link>
+              <Link 
+                to="/#how-it-works" 
                 className="mobile-nav-link"
                 onClick={closeMobileMenu}
               >
                 How It Works
-              </a>
+              </Link>
               <Link 
                 to="/contact" 
                 className={`mobile-nav-link ${location.pathname === '/contact' ? 'active' : ''}`}
@@ -121,7 +150,7 @@ export const PublicLayout: React.FC = () => {
                 <span className="brand-accent">Finance</span>
               </Link>
               <p className="footer-desc">
-                Free illustrative loan calculations and voluntary loan enquiries for informed financial decisions.
+                Free illustrative loan calculations and voluntary loan & insurance enquiries for informed financial decisions.
               </p>
               <div className="footer-tagline-badge">
                 <span>Free estimate • No obligation</span>
@@ -133,7 +162,8 @@ export const PublicLayout: React.FC = () => {
               <ul>
                 <li><Link to="/">Home</Link></li>
                 <li><Link to="/calculator">Loan Calculator</Link></li>
-                <li><a href="/#how-it-works">How It Works</a></li>
+                <li><Link to="/insurance">Insurance</Link></li>
+                <li><Link to="/#how-it-works">How It Works</Link></li>
                 <li><Link to="/contact">Contact Us</Link></li>
               </ul>
             </div>
