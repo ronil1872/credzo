@@ -528,6 +528,164 @@ export interface Database {
           }
         ];
       };
+      loan_interest_rates: {
+        Row: {
+          id: string;
+          organization_id: string;
+          loan_type: string;
+          label: string;
+          rate: number;
+          min_amount: number;
+          max_amount: number;
+          default_amount: number;
+          min_tenure_months: number;
+          max_tenure_months: number;
+          default_tenure_months: number;
+          is_active: boolean;
+          updated_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          loan_type: string;
+          label: string;
+          rate: number;
+          min_amount?: number;
+          max_amount?: number;
+          default_amount?: number;
+          min_tenure_months?: number;
+          max_tenure_months?: number;
+          default_tenure_months?: number;
+          is_active?: boolean;
+          updated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          loan_type?: string;
+          label?: string;
+          rate?: number;
+          min_amount?: number;
+          max_amount?: number;
+          default_amount?: number;
+          min_tenure_months?: number;
+          max_tenure_months?: number;
+          default_tenure_months?: number;
+          is_active?: boolean;
+          updated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'loan_interest_rates_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      insurance_lead_notes: {
+        Row: {
+          id: string;
+          insurance_lead_id: string;
+          organization_id: string;
+          author_id: string | null;
+          note: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          insurance_lead_id: string;
+          organization_id: string;
+          author_id?: string | null;
+          note: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          insurance_lead_id?: string;
+          organization_id?: string;
+          author_id?: string | null;
+          note?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'insurance_lead_notes_insurance_lead_id_fkey';
+            columns: ['insurance_lead_id'];
+            isOneToOne: false;
+            referencedRelation: 'insurance_leads';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'insurance_lead_notes_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      insurance_follow_ups: {
+        Row: {
+          id: string;
+          insurance_lead_id: string;
+          organization_id: string;
+          assigned_to: string | null;
+          scheduled_at: string;
+          completed_at: string | null;
+          note: string | null;
+          status: FollowUpStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          insurance_lead_id: string;
+          organization_id: string;
+          assigned_to?: string | null;
+          scheduled_at: string;
+          completed_at?: string | null;
+          note?: string | null;
+          status?: FollowUpStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          insurance_lead_id?: string;
+          organization_id?: string;
+          assigned_to?: string | null;
+          scheduled_at?: string;
+          completed_at?: string | null;
+          note?: string | null;
+          status?: FollowUpStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'insurance_follow_ups_insurance_lead_id_fkey';
+            columns: ['insurance_lead_id'];
+            isOneToOne: false;
+            referencedRelation: 'insurance_leads';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'insurance_follow_ups_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -557,16 +715,23 @@ export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type Lead = Database['public']['Tables']['leads']['Row'];
 export type InsuranceLead = Database['public']['Tables']['insurance_leads']['Row'];
 export type LeadNote = Database['public']['Tables']['lead_notes']['Row'];
+export type InsuranceLeadNote = Database['public']['Tables']['insurance_lead_notes']['Row'];
 export type FollowUp = Database['public']['Tables']['follow_ups']['Row'];
+export type InsuranceFollowUp = Database['public']['Tables']['insurance_follow_ups']['Row'];
 export type Campaign = Database['public']['Tables']['campaigns']['Row'];
 export type LeadEvent = Database['public']['Tables']['lead_events']['Row'];
 export type CalculatorSession = Database['public']['Tables']['calculator_sessions']['Row'];
+export type LoanInterestRate = Database['public']['Tables']['loan_interest_rates']['Row'];
 
 // Convenience Insert Types
 export type LeadInsert = Database['public']['Tables']['leads']['Insert'];
 export type InsuranceLeadInsert = Database['public']['Tables']['insurance_leads']['Insert'];
 export type LeadNoteInsert = Database['public']['Tables']['lead_notes']['Insert'];
+export type InsuranceLeadNoteInsert = Database['public']['Tables']['insurance_lead_notes']['Insert'];
 export type FollowUpInsert = Database['public']['Tables']['follow_ups']['Insert'];
+export type InsuranceFollowUpInsert = Database['public']['Tables']['insurance_follow_ups']['Insert'];
 export type LeadEventInsert = Database['public']['Tables']['lead_events']['Insert'];
 export type CalculatorSessionInsert = Database['public']['Tables']['calculator_sessions']['Insert'];
+export type LoanInterestRateInsert = Database['public']['Tables']['loan_interest_rates']['Insert'];
+
 

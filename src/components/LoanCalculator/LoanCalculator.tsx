@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LoanType,
   EmploymentType,
@@ -10,11 +10,14 @@ import {
   calculateLoan,
   validateCalculatorInput,
 } from '../../lib/calculator';
+import { useLoanRates } from '../../hooks';
 import { CalculatorInputs } from './CalculatorInputs';
 import { CalculatorResult } from './CalculatorResult';
 import './LoanCalculator.css';
 
 export const LoanCalculator: React.FC = () => {
+  const { configurations } = useLoanRates();
+
   // 1. Core Input State - Starts empty to provide a clean, unbiased user experience
   const [loanType, setLoanType] = useState<LoanType>('personal');
   const [principal, setPrincipal] = useState<number>(0);
@@ -40,7 +43,7 @@ export const LoanCalculator: React.FC = () => {
       return;
     }
 
-    const config = LOAN_CONFIGURATIONS[currentLoanType];
+    const config = configurations[currentLoanType];
     const newResult = calculateLoan({
       loanType: currentLoanType,
       principal: currentPrincipal,
@@ -54,9 +57,63 @@ export const LoanCalculator: React.FC = () => {
     setCalculationResult(newResult);
   };
 
+  // Handle active configurations change & clamp current values
+  useEffect(() => {
+    const availableKeys = Object.keys(configurations) as LoanType[];
+    if (availableKeys.length === 0) return;
+
+    let currentType = loanType;
+    let typeChanged = false;
+
+    // If current loanType is disabled / not in active configurations, switch to first active type
+    if (!configurations[currentType]) {
+      currentType = availableKeys[0];
+      setLoanType(currentType);
+      typeChanged = true;
+    }
+
+    const config = configurations[currentType];
+    if (!config) return;
+
+    let adjustedPrincipal = principal;
+    let adjustedTenure = tenureMonths;
+    let boundsChanged = false;
+
+    if (principal > 0) {
+      if (principal < config.minAmount) {
+        adjustedPrincipal = config.minAmount;
+        boundsChanged = true;
+      } else if (principal > config.maxAmount) {
+        adjustedPrincipal = config.maxAmount;
+        boundsChanged = true;
+      }
+    }
+
+    if (tenureMonths > 0) {
+      if (tenureMonths < config.minTenureMonths) {
+        adjustedTenure = config.minTenureMonths;
+        boundsChanged = true;
+      } else if (tenureMonths > config.maxTenureMonths) {
+        adjustedTenure = config.maxTenureMonths;
+        boundsChanged = true;
+      }
+    }
+
+    if (boundsChanged) {
+      setPrincipal(adjustedPrincipal);
+      setTenureMonths(adjustedTenure);
+    }
+
+    if (typeChanged || boundsChanged) {
+      if (adjustedPrincipal > 0 && adjustedTenure > 0) {
+        executeCalculation(currentType, adjustedPrincipal, adjustedTenure);
+      }
+    }
+  }, [configurations, loanType]);
+
   // 4. Loan Type Change Handler
   const handleLoanTypeChange = (newType: LoanType) => {
-    const config = LOAN_CONFIGURATIONS[newType];
+    const config = configurations[newType];
     setLoanType(newType);
 
     let newPrincipal = principal;
@@ -121,7 +178,7 @@ export const LoanCalculator: React.FC = () => {
       tenureMonths,
       monthlyIncome: monthlyIncome ? parseInt(monthlyIncome, 10) : undefined,
       existingEmi: existingEmi ? parseInt(existingEmi, 10) : undefined,
-    });
+    }, configurations);
 
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -169,6 +226,7 @@ export const LoanCalculator: React.FC = () => {
             employmentType={employmentType}
             city={city}
             errors={errors}
+            configurations={configurations}
             onLoanTypeChange={handleLoanTypeChange}
             onPrincipalChange={handlePrincipalChange}
             onTenureChange={handleTenureChange}
@@ -191,7 +249,7 @@ export const LoanCalculator: React.FC = () => {
       <div className="calculator-result-column">
         <CalculatorResult
           result={calculationResult}
-          loanTypeLabel={LOAN_CONFIGURATIONS[loanType].label}
+          loanTypeLabel={configurations[loanType]?.label || LOAN_CONFIGURATIONS[loanType].label}
           loanType={loanType}
           monthlyIncome={monthlyIncome}
           existingEmi={existingEmi}

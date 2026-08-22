@@ -28,6 +28,7 @@ import { FollowUpsPage } from '../pages/admin/FollowUps/FollowUpsPage';
 import { CampaignsPage } from '../pages/admin/Campaigns/CampaignsPage';
 import { SettingsPage } from '../pages/admin/Settings/SettingsPage';
 import { InsuranceLeadsPage } from '../pages/admin/Insurance/InsuranceLeadsPage';
+import { InsuranceLeadDetailPage } from '../pages/admin/Insurance/InsuranceLeadDetailPage';
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -53,6 +54,7 @@ export const AppRoutes: React.FC = () => {
             <Route path="leads" element={<LeadsPage />} />
             <Route path="leads/:id" element={<LeadDetailPage />} />
             <Route path="insurance" element={<InsuranceLeadsPage />} />
+            <Route path="insurance/:id" element={<InsuranceLeadDetailPage />} />
             <Route path="follow-ups" element={<FollowUpsPage />} />
             <Route path="campaigns" element={<CampaignsPage />} />
             <Route path="settings" element={<SettingsPage />} />

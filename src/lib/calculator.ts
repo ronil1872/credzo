@@ -124,6 +124,115 @@ export const LOAN_CONFIGURATIONS: Record<LoanType, LoanTypeOption> = {
 };
 
 /**
+ * Dynamically generates intuitive tenure preset buttons based on min and max months.
+ */
+export function generateTenurePresets(
+  minMonths: number,
+  maxMonths: number,
+  loanType?: LoanType
+): Array<{ label: string; months: number }> {
+  let candidates: Array<{ label: string; months: number }> = [];
+
+  if (loanType === 'gold' || maxMonths <= 36) {
+    candidates = [
+      { label: '3 Mos', months: 3 },
+      { label: '6 Mos', months: 6 },
+      { label: '1 Yr', months: 12 },
+      { label: '2 Yrs', months: 24 },
+      { label: '3 Yrs', months: 36 },
+    ];
+  } else if (maxMonths <= 60) {
+    candidates = [
+      { label: '1 Yr', months: 12 },
+      { label: '2 Yrs', months: 24 },
+      { label: '3 Yrs', months: 36 },
+      { label: '4 Yrs', months: 48 },
+      { label: '5 Yrs', months: 60 },
+    ];
+  } else if (maxMonths <= 120) {
+    candidates = [
+      { label: '1 Yr', months: 12 },
+      { label: '2 Yrs', months: 24 },
+      { label: '3 Yrs', months: 36 },
+      { label: '5 Yrs', months: 60 },
+      { label: '7 Yrs', months: 84 },
+      { label: '10 Yrs', months: 120 },
+    ];
+  } else {
+    candidates = [
+      { label: '3 Yrs', months: 36 },
+      { label: '5 Yrs', months: 60 },
+      { label: '7 Yrs', months: 84 },
+      { label: '10 Yrs', months: 120 },
+      { label: '15 Yrs', months: 180 },
+      { label: '20 Yrs', months: 240 },
+      { label: '25 Yrs', months: 300 },
+      { label: '30 Yrs', months: 360 },
+    ];
+  }
+
+  return candidates.filter(
+    (preset) => preset.months >= minMonths && preset.months <= maxMonths
+  );
+}
+
+/**
+ * Merges active database-backed loan interest rates into loan configurations.
+ * Only active loan products returned from the database are included in the resulting dictionary.
+ */
+export function mergeDatabaseLoanConfigurations(
+  dbRates?: Array<{
+    loan_type: string;
+    label?: string;
+    rate: number;
+    min_amount?: number;
+    max_amount?: number;
+    default_amount?: number;
+    min_tenure_months?: number;
+    max_tenure_months?: number;
+    default_tenure_months?: number;
+  }> | null
+): Record<LoanType, LoanTypeOption> {
+  if (!dbRates || dbRates.length === 0) {
+    return { ...LOAN_CONFIGURATIONS };
+  }
+
+  const activeConfigs: Partial<Record<LoanType, LoanTypeOption>> = {};
+  for (const item of dbRates) {
+    const key = item.loan_type as LoanType;
+    const base = LOAN_CONFIGURATIONS[key] || {
+      id: key,
+      label: item.label || key.toUpperCase(),
+      defaultRate: Number(item.rate),
+      minAmount: 25000,
+      maxAmount: 5000000,
+      defaultAmount: 500000,
+      minTenureMonths: 6,
+      maxTenureMonths: 60,
+      defaultTenureMonths: 36,
+      tenurePresets: [],
+    };
+
+    const minTenure = item.min_tenure_months !== undefined ? Number(item.min_tenure_months) : base.minTenureMonths;
+    const maxTenure = item.max_tenure_months !== undefined ? Number(item.max_tenure_months) : base.maxTenureMonths;
+
+    activeConfigs[key] = {
+      ...base,
+      label: item.label || base.label,
+      defaultRate: Number(item.rate),
+      minAmount: item.min_amount !== undefined ? Number(item.min_amount) : base.minAmount,
+      maxAmount: item.max_amount !== undefined ? Number(item.max_amount) : base.maxAmount,
+      defaultAmount: item.default_amount !== undefined ? Number(item.default_amount) : base.defaultAmount,
+      minTenureMonths: minTenure,
+      maxTenureMonths: maxTenure,
+      defaultTenureMonths: item.default_tenure_months !== undefined ? Number(item.default_tenure_months) : base.defaultTenureMonths,
+      tenurePresets: generateTenurePresets(minTenure, maxTenure, key),
+    };
+  }
+  return activeConfigs as Record<LoanType, LoanTypeOption>;
+}
+
+/**
  * Formats a number in the standard Indian currency numbering system (e.g. ₹5,00,000).
  */
 export function formatIndianCurrency(amount: number, includeSymbol: boolean = true): string {
@@ -229,15 +338,17 @@ export function calculateLoan(input: LoanCalculationInput): LoanCalculationResul
  * Validates calculator inputs before calculation/submission.
  */
 export function validateCalculatorInput(
-  input: Partial<LoanCalculationInput>
+  input: Partial<LoanCalculationInput>,
+  customConfigs?: Record<LoanType, LoanTypeOption>
 ): CalculatorValidationErrors {
+  const configs = customConfigs || LOAN_CONFIGURATIONS;
   const errors: CalculatorValidationErrors = {};
 
-  if (!input.loanType || !LOAN_CONFIGURATIONS[input.loanType]) {
+  if (!input.loanType || !configs[input.loanType]) {
     errors.loanType = 'Please select a valid loan type.';
   }
 
-  const config = input.loanType ? LOAN_CONFIGURATIONS[input.loanType] : null;
+  const config = input.loanType ? configs[input.loanType] : null;
 
   if (input.principal === undefined || input.principal === null || isNaN(input.principal)) {
     errors.principal = 'Please enter a valid loan amount.';

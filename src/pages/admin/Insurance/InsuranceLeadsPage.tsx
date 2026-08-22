@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { InsuranceLead, LeadStatus } from '../../../types/database';
 import { InsuranceLeadDetailModal } from '../components/InsuranceLeadDetailModal';
@@ -421,13 +422,22 @@ export const InsuranceLeadsPage: React.FC = () => {
                       <span className={`status-badge ${lead.status}`}>{lead.status}</span>
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        className="view-lead-btn"
-                        onClick={() => setSelectedLeadId(lead.id)}
-                      >
-                        View Details →
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <button
+                          type="button"
+                          className="view-lead-btn"
+                          onClick={() => setSelectedLeadId(lead.id)}
+                        >
+                          View Details →
+                        </button>
+                        <Link
+                          to={`/admin/insurance/${lead.id}`}
+                          className="btn btn-outline btn-xs"
+                          title="Open full page workspace"
+                        >
+                          Full Page ↗
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -488,13 +498,21 @@ export const InsuranceLeadsPage: React.FC = () => {
                   <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
                     {formatDateTime(lead.created_at)}
                   </span>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-xs"
-                    onClick={() => setSelectedLeadId(lead.id)}
-                  >
-                    View Details →
-                  </button>
+                  <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-xs"
+                      onClick={() => setSelectedLeadId(lead.id)}
+                    >
+                      View Details →
+                    </button>
+                    <Link
+                      to={`/admin/insurance/${lead.id}`}
+                      className="btn btn-outline btn-xs"
+                    >
+                      Full Page ↗
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))

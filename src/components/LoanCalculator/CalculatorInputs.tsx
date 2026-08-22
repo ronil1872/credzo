@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   LoanType,
+  LoanTypeOption,
   EmploymentType,
   CalculatorValidationErrors,
 } from '../../types';
@@ -8,6 +9,7 @@ import {
   LOAN_CONFIGURATIONS,
   formatIndianCurrency,
   formatTenureDisplay,
+  generateTenurePresets,
 } from '../../lib/calculator';
 
 interface CalculatorInputsProps {
@@ -19,6 +21,7 @@ interface CalculatorInputsProps {
   employmentType: EmploymentType;
   city: string;
   errors: CalculatorValidationErrors;
+  configurations?: Record<LoanType, LoanTypeOption>;
   onLoanTypeChange: (type: LoanType) => void;
   onPrincipalChange: (amount: number) => void;
   onTenureChange: (months: number) => void;
@@ -38,6 +41,7 @@ export const CalculatorInputs: React.FC<CalculatorInputsProps> = ({
   employmentType,
   city,
   errors,
+  configurations = LOAN_CONFIGURATIONS,
   onLoanTypeChange,
   onPrincipalChange,
   onTenureChange,
@@ -47,7 +51,8 @@ export const CalculatorInputs: React.FC<CalculatorInputsProps> = ({
   onCityChange,
   onCalculate,
 }) => {
-  const currentConfig = LOAN_CONFIGURATIONS[loanType];
+  const currentConfig =
+    configurations[loanType] || Object.values(configurations)[0] || LOAN_CONFIGURATIONS.personal;
 
   const handleAmountInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawVal = e.target.value.replace(/[^0-9]/g, '');
@@ -71,7 +76,7 @@ export const CalculatorInputs: React.FC<CalculatorInputsProps> = ({
           </span>
         </label>
         <div className="loan-types-pill-grid" role="radiogroup" aria-labelledby="loan-type-label">
-          {Object.values(LOAN_CONFIGURATIONS).map((config) => {
+          {Object.values(configurations).map((config) => {
             const isSelected = loanType === config.id;
             return (
               <button
@@ -147,7 +152,10 @@ export const CalculatorInputs: React.FC<CalculatorInputsProps> = ({
 
         {/* Tenure Presets */}
         <div className="tenure-presets-row">
-          {currentConfig.tenurePresets.map((preset) => (
+          {(currentConfig.tenurePresets && currentConfig.tenurePresets.length > 0
+            ? currentConfig.tenurePresets
+            : generateTenurePresets(currentConfig.minTenureMonths, currentConfig.maxTenureMonths, loanType)
+          ).map((preset: { label: string; months: number }) => (
             <button
               type="button"
               key={preset.months}
@@ -166,7 +174,7 @@ export const CalculatorInputs: React.FC<CalculatorInputsProps> = ({
           className="range-slider"
           min={currentConfig.minTenureMonths}
           max={currentConfig.maxTenureMonths}
-          step={loanType === 'gold' ? 3 : 6}
+          step={1}
           value={tenureMonths > 0 ? Math.min(currentConfig.maxTenureMonths, Math.max(currentConfig.minTenureMonths, tenureMonths)) : currentConfig.minTenureMonths}
           onChange={handleTenureSliderChange}
           aria-label="Loan tenure slider"
