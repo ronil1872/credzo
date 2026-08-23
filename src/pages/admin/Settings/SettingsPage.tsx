@@ -481,6 +481,172 @@ export const SettingsPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Cards View for Rate Settings */}
+        <div className="settings-mobile-list">
+          {loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="settings-mobile-card">
+                <div className="skeleton-row" style={{ height: 36 }} />
+                <div className="skeleton-row" style={{ height: 80 }} />
+              </div>
+            ))
+          ) : rates.length === 0 ? (
+            <div className="empty-state">
+              <p className="empty-state-title">No rate configurations found</p>
+            </div>
+          ) : (
+            rates.map((item) => {
+              const isSaving = savingKey === item.loan_type;
+
+              return (
+                <div key={item.loan_type} className="settings-mobile-card">
+                  <div className="settings-mobile-header">
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 'var(--font-size-base)', color: 'var(--text-primary)' }}>
+                        {item.label}
+                      </div>
+                      <span className="lead-ref-pill">{item.loan_type.toUpperCase()}</span>
+                    </div>
+
+                    {isAdminOrOwner ? (
+                      <button
+                        type="button"
+                        className={`status-badge ${item.is_active ? 'APPROVED' : 'LOST'}`}
+                        style={{ cursor: 'pointer', border: 'none', padding: '4px 10px' }}
+                        onClick={() => handleFieldChange(item.loan_type, 'is_active', !item.is_active)}
+                        title="Toggle status"
+                      >
+                        {item.is_active ? 'ACTIVE' : 'DISABLED'}
+                      </button>
+                    ) : (
+                      <span className={`status-badge ${item.is_active ? 'APPROVED' : 'LOST'}`}>
+                        {item.is_active ? 'ACTIVE' : 'DISABLED'}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="settings-mobile-inputs">
+                    <div className="value-input-group">
+                      <label className="value-label">Annual Rate (%)</label>
+                      {isAdminOrOwner ? (
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="100"
+                          className="value-input"
+                          value={item.rate}
+                          onChange={(e) =>
+                            handleFieldChange(item.loan_type, 'rate', parseFloat(e.target.value) || 0)
+                          }
+                        />
+                      ) : (
+                        <div style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{item.rate}% p.a.</div>
+                      )}
+                    </div>
+
+                    <div className="value-input-group">
+                      <label className="value-label">Default Amount (₹)</label>
+                      {isAdminOrOwner ? (
+                        <input
+                          type="number"
+                          step="50000"
+                          className="value-input"
+                          value={item.default_amount}
+                          onChange={(e) =>
+                            handleFieldChange(item.loan_type, 'default_amount', parseInt(e.target.value, 10) || 0)
+                          }
+                        />
+                      ) : (
+                        <div>{formatIndianCurrency(item.default_amount)}</div>
+                      )}
+                    </div>
+
+                    <div className="value-input-group">
+                      <label className="value-label">Min Amount (₹)</label>
+                      {isAdminOrOwner ? (
+                        <input
+                          type="number"
+                          step="5000"
+                          className="value-input"
+                          value={item.min_amount}
+                          onChange={(e) =>
+                            handleFieldChange(item.loan_type, 'min_amount', parseInt(e.target.value, 10) || 0)
+                          }
+                        />
+                      ) : (
+                        <div>{formatIndianCurrency(item.min_amount)}</div>
+                      )}
+                    </div>
+
+                    <div className="value-input-group">
+                      <label className="value-label">Max Amount (₹)</label>
+                      {isAdminOrOwner ? (
+                        <input
+                          type="number"
+                          step="100000"
+                          className="value-input"
+                          value={item.max_amount}
+                          onChange={(e) =>
+                            handleFieldChange(item.loan_type, 'max_amount', parseInt(e.target.value, 10) || 0)
+                          }
+                        />
+                      ) : (
+                        <div>{formatIndianCurrency(item.max_amount)}</div>
+                      )}
+                    </div>
+
+                    <div className="value-input-group" style={{ gridColumn: '1 / -1' }}>
+                      <label className="value-label">Tenure Range (Months)</label>
+                      {isAdminOrOwner ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max="360"
+                            className="value-input"
+                            style={{ flex: 1 }}
+                            value={item.min_tenure_months}
+                            onChange={(e) =>
+                              handleFieldChange(item.loan_type, 'min_tenure_months', parseInt(e.target.value, 10) || 0)
+                            }
+                          />
+                          <span>–</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="360"
+                            className="value-input"
+                            style={{ flex: 1 }}
+                            value={item.max_tenure_months}
+                            onChange={(e) =>
+                              handleFieldChange(item.loan_type, 'max_tenure_months', parseInt(e.target.value, 10) || 0)
+                            }
+                          />
+                        </div>
+                      ) : (
+                        <div>{item.min_tenure_months} – {item.max_tenure_months} Months</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {isAdminOrOwner && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ width: '100%', minHeight: 44 }}
+                      onClick={() => handleSaveRate(item)}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? 'Saving...' : 'Save Changes'}
+                    </button>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
     </div>
   );

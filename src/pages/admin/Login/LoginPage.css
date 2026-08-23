@@ -193,3 +193,25 @@
 .back-to-site-link:hover {
   color: var(--color-primary);
 }
+
+@media (max-width: 480px) {
+  .login-page-container {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .login-card {
+    padding: var(--space-5) var(--space-4);
+    border-radius: var(--radius-xl);
+  }
+
+  .login-title {
+    font-size: var(--font-size-xl);
+  }
+
+  .login-form .form-input,
+  .password-input {
+    font-size: 1rem; /* 16px to prevent iOS auto-zoom */
+    min-height: 44px;
+  }
+}
+

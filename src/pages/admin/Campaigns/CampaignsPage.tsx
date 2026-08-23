@@ -393,6 +393,139 @@ export const CampaignsPage: React.FC = () => {
           )}
         </div>
 
+        {/* Mobile Cards List for Campaigns */}
+        <div className="campaign-mobile-list">
+          {loading ? (
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="campaign-mobile-card">
+                <div className="skeleton-row" style={{ height: 36 }} />
+                <div className="skeleton-row" style={{ height: 64 }} />
+              </div>
+            ))
+          ) : rows.length === 0 ? (
+            <div className="empty-state">
+              <p className="empty-state-title">No attribution data yet</p>
+            </div>
+          ) : (
+            rows.map((row) => {
+              const isExpanded = expandedKey === row.key;
+              const conversionRate =
+                row.totalLeads > 0
+                  ? ((row.applications / row.totalLeads) * 100).toFixed(1)
+                  : '0.0';
+
+              return (
+                <div key={row.key} className="campaign-mobile-card">
+                  <div className="campaign-mobile-header">
+                    <div className="source-key-cell">
+                      <span
+                        className={`source-dot ${
+                          row.key === '(direct / untracked)' ? 'dot-direct' : 'dot-tracked'
+                        }`}
+                      />
+                      <span className="source-key-name">{row.key}</span>
+                    </div>
+                    <span
+                      className={`conv-rate-pill ${
+                        Number(conversionRate) >= 10
+                          ? 'good'
+                          : Number(conversionRate) > 0
+                          ? 'ok'
+                          : 'none'
+                      }`}
+                    >
+                      {conversionRate}%
+                    </span>
+                  </div>
+
+                  <div className="campaign-mobile-grid">
+                    <div className="campaign-mobile-grid-item">
+                      <span className="campaign-mobile-grid-label">Total Leads</span>
+                      <span className="campaign-mobile-grid-val">{row.totalLeads}</span>
+                    </div>
+                    <div className="campaign-mobile-grid-item">
+                      <span className="campaign-mobile-grid-label">Hot Leads</span>
+                      <span
+                        className="campaign-mobile-grid-val"
+                        style={{ color: row.hotLeads > 0 ? '#b91c1c' : 'inherit' }}
+                      >
+                        {row.hotLeads}
+                      </span>
+                    </div>
+                    <div className="campaign-mobile-grid-item">
+                      <span className="campaign-mobile-grid-label">Applications</span>
+                      <span className="campaign-mobile-grid-val">{row.applications}</span>
+                    </div>
+                    <div className="campaign-mobile-grid-item">
+                      <span className="campaign-mobile-grid-label">Pipeline Value</span>
+                      <span className="campaign-mobile-grid-val" style={{ color: 'var(--color-primary)' }}>
+                        {fmtCr(row.potentialValue)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border-subtle)' }}>
+                    <button
+                      type="button"
+                      className="view-lead-btn"
+                      onClick={() => setExpandedKey(isExpanded ? null : row.key)}
+                    >
+                      {isExpanded ? 'Hide Details ↑' : 'View Breakdown ↓'}
+                    </button>
+                    <Link
+                      to={`/admin/leads?source=${encodeURIComponent(row.key)}`}
+                      className="btn btn-outline btn-xs"
+                    >
+                      Leads ↗
+                    </Link>
+                  </div>
+
+                  {isExpanded && (
+                    <div style={{ marginTop: 'var(--space-2)', paddingTop: 'var(--space-3)', borderTop: '1px solid var(--border-subtle)' }}>
+                      <div className="campaign-mobile-grid" style={{ marginBottom: 'var(--space-3)' }}>
+                        <div className="campaign-mobile-grid-item">
+                          <span className="campaign-mobile-grid-label">Approved</span>
+                          <span className="campaign-mobile-grid-val">{row.approved}</span>
+                        </div>
+                        <div className="campaign-mobile-grid-item">
+                          <span className="campaign-mobile-grid-label">Disbursed</span>
+                          <span className="campaign-mobile-grid-val">{row.disbursed}</span>
+                        </div>
+                      </div>
+
+                      {Object.keys(row.loanTypes).length > 0 && (
+                        <div>
+                          <p style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 'var(--space-2)' }}>
+                            Loan Types
+                          </p>
+                          <div className="loan-type-breakdown">
+                            {Object.entries(row.loanTypes)
+                              .sort(([, a], [, b]) => b - a)
+                              .map(([lt, count]) => (
+                                <div key={lt} className="loan-type-bar-item">
+                                  <span className="loan-type-bar-label">
+                                    {LOAN_TYPE_LABEL[lt] || lt}
+                                  </span>
+                                  <div className="loan-type-bar-track">
+                                    <div
+                                      className="loan-type-bar-fill"
+                                      style={{ width: `${(count / row.totalLeads) * 100}%` }}
+                                    />
+                                  </div>
+                                  <span className="loan-type-bar-count">{count}</span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
         {/* Footer note */}
         {!loading && rows.length > 0 && (
           <div className="attribution-footer-note">
