@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { formatIndianCurrency, formatTenureDisplay } from '../../../lib/calculator';
+import { RelatedEnquiriesCard } from '../components/RelatedEnquiriesCard';
 import { useAuth } from '../../../hooks';
 import { Lead, LeadStatus, LeadNote, FollowUp } from '../../../types/database';
 import '../crm.css';
@@ -302,6 +303,13 @@ export const LeadDetailPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Cross-Service Related Enquiries */}
+          <RelatedEnquiriesCard
+            mobile={lead.mobile}
+            currentLeadId={lead.id}
+            currentCategory="loan"
+          />
 
           {/* Calculator Estimate Snapshot */}
           <div className="crm-card">

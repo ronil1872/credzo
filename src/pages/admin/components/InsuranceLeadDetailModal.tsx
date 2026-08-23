@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../hooks';
+import { RelatedEnquiriesCard } from './RelatedEnquiriesCard';
 import {
   InsuranceLead,
   InsuranceLeadNote,
@@ -401,6 +402,13 @@ export const InsuranceLeadDetailModal: React.FC<InsuranceLeadDetailModalProps> =
                   </div>
                 </div>
               </div>
+
+              {/* Cross-Service Related Enquiries */}
+              <RelatedEnquiriesCard
+                mobile={lead.mobile}
+                currentLeadId={lead.id}
+                currentCategory="insurance"
+              />
 
               {/* 2. Insurance Request */}
               <div className="lead-modal-section">

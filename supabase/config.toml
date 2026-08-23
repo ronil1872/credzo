@@ -1,0 +1,5 @@
+# Credzo Finance — Supabase CLI Configuration
+project_id = "pwgslejhgnoziztpcjjz"
+
+[functions.staff-login]
+verify_jwt = false

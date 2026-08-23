@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '../../components/ui';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { getStoredUtmParams } from '../../lib/tracking';
+import { normalizeIndianMobile, isValidIndianMobile } from '../../lib/mobileUtils';
 import { InsuranceLeadInsert } from '../../types/database';
 import './InsurancePage.css';
 
@@ -133,11 +134,11 @@ export const InsurancePage: React.FC = () => {
         return undefined;
 
       case 'mobile': {
-        const cleanMobile = typeof value === 'string' ? value.replace(/\D/g, '') : '';
+        const cleanMobile = normalizeIndianMobile(typeof value === 'string' ? value : '');
         if (!cleanMobile) {
           return 'Mobile number is required.';
         }
-        if (!/^[6-9]\d{9}$/.test(cleanMobile)) {
+        if (!isValidIndianMobile(cleanMobile)) {
           return 'Please enter a valid 10-digit Indian mobile number (e.g. 9876543210).';
         }
         return undefined;
@@ -189,8 +190,8 @@ export const InsurancePage: React.FC = () => {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData((prev) => ({ ...prev, [name]: checked }));
     } else if (name === 'mobile') {
-      const numbersOnly = value.replace(/\D/g, '').slice(0, 10);
-      setFormData((prev) => ({ ...prev, [name]: numbersOnly }));
+      const normalized = normalizeIndianMobile(value);
+      setFormData((prev) => ({ ...prev, [name]: normalized }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }

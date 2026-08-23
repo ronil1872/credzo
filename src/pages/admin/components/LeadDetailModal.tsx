@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { formatIndianCurrency, formatTenureDisplay } from '../../../lib/calculator';
+import { RelatedEnquiriesCard } from './RelatedEnquiriesCard';
 import { useAuth } from '../../../hooks';
 import { Lead, LeadStatus, LeadNote, FollowUp } from '../../../types/database';
 import '../crm.css';
@@ -431,6 +432,13 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
                   </div>
                 </div>
               </div>
+
+              {/* Section 1.5: Cross-Service Related Enquiries */}
+              <RelatedEnquiriesCard
+                mobile={lead.mobile}
+                currentLeadId={lead.id}
+                currentCategory="loan"
+              />
 
               {/* Section 2: Calculator Estimate Snapshot */}
               <div className="crm-card">

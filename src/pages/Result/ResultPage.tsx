@@ -7,6 +7,7 @@ import {
   calculateLoan,
 } from '../../lib/calculator';
 import { getStoredUtmParams } from '../../lib/tracking';
+import { normalizeIndianMobile, isValidIndianMobile } from '../../lib/mobileUtils';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { LoanCalculationResult } from '../../types';
 import './ResultPage.css';
@@ -115,11 +116,8 @@ export const ResultPage: React.FC = () => {
   const handleMobileChange = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
-    const raw = e.target.value
-      .replace(/[^0-9]/g, '')
-      .slice(0, 10);
-
-    setMobile(raw);
+    const normalized = normalizeIndianMobile(e.target.value);
+    setMobile(normalized);
 
     if (errors.mobile) {
       setErrors((prev) => ({
@@ -140,9 +138,7 @@ export const ResultPage: React.FC = () => {
         'Please enter your full name (minimum 2 characters).';
     }
 
-    const mobileRegex = /^[6-9]\d{9}$/;
-
-    if (!mobile || !mobileRegex.test(mobile)) {
+    if (!mobile || !isValidIndianMobile(mobile)) {
       errs.mobile =
         'Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9.';
     }

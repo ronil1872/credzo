@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { useAuth } from '../../../hooks';
+import { RelatedEnquiriesCard } from '../components/RelatedEnquiriesCard';
 import {
   InsuranceLead,
   InsuranceLeadNote,
@@ -369,6 +370,13 @@ export const InsuranceLeadDetailPage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Cross-Service Related Enquiries */}
+          <RelatedEnquiriesCard
+            mobile={lead.mobile}
+            currentLeadId={lead.id}
+            currentCategory="insurance"
+          />
 
           {/* 2. Insurance Request & Callback Preference */}
           <div className="crm-card">

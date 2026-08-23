@@ -686,6 +686,36 @@ export interface Database {
           }
         ];
       };
+      staff_login_attempts: {
+        Row: {
+          id: string;
+          email_hash: string;
+          failed_attempts: number;
+          locked_until: string | null;
+          last_failed_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          email_hash: string;
+          failed_attempts?: number;
+          locked_until?: string | null;
+          last_failed_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email_hash?: string;
+          failed_attempts?: number;
+          locked_until?: string | null;
+          last_failed_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -698,6 +728,17 @@ export interface Database {
       get_auth_role: {
         Args: Record<PropertyKey, never>;
         Returns: string;
+      };
+      internal_record_staff_login_failure: {
+        Args: {
+          p_email_hash: string;
+        };
+        Returns: {
+          is_locked: boolean;
+          failed_attempts: number;
+          remaining_seconds?: number;
+          locked_until?: string | null;
+        };
       };
     };
     Enums: {
