@@ -100,6 +100,7 @@ export interface Database {
           lead_score: LeadScore;
           lead_score_reason: string | null;
           status: LeadStatus;
+          assigned_to: string | null;
           lead_source: string;
           campaign: string | null;
           ad: string | null;
@@ -136,6 +137,7 @@ export interface Database {
           lead_score?: LeadScore;
           lead_score_reason?: string | null;
           status?: LeadStatus;
+          assigned_to?: string | null;
           lead_source?: string;
           campaign?: string | null;
           ad?: string | null;
@@ -172,6 +174,7 @@ export interface Database {
           lead_score?: LeadScore;
           lead_score_reason?: string | null;
           status?: LeadStatus;
+          assigned_to?: string | null;
           lead_source?: string;
           campaign?: string | null;
           ad?: string | null;
@@ -455,6 +458,7 @@ export interface Database {
           preferred_callback_time: string | null;
           message: string | null;
           status: LeadStatus;
+          assigned_to: string | null;
           lead_source: string;
           campaign: string | null;
           ad: string | null;
@@ -480,6 +484,7 @@ export interface Database {
           preferred_callback_time?: string | null;
           message?: string | null;
           status?: LeadStatus;
+          assigned_to?: string | null;
           lead_source?: string;
           campaign?: string | null;
           ad?: string | null;
@@ -505,6 +510,7 @@ export interface Database {
           preferred_callback_time?: string | null;
           message?: string | null;
           status?: LeadStatus;
+          assigned_to?: string | null;
           lead_source?: string;
           campaign?: string | null;
           ad?: string | null;

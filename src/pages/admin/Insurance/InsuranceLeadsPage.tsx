@@ -1,8 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
+import { useAuth } from '../../../hooks';
 import { InsuranceLead, LeadStatus } from '../../../types/database';
 import { InsuranceLeadDetailModal } from '../components/InsuranceLeadDetailModal';
+import { BulkActionToolbar } from '../components/BulkActionToolbar';
+import { BulkDeleteDialog } from '../components/BulkDeleteDialog';
+import { BulkStatusDialog } from '../components/BulkStatusDialog';
+import { BulkAssignDialog } from '../components/BulkAssignDialog';
+import { BulkFollowUpDialog } from '../components/BulkFollowUpDialog';
 import '../crm.css';
 
 const PAGE_SIZE = 20;
@@ -58,12 +64,34 @@ interface InsuranceStats {
 }
 
 export const InsuranceLeadsPage: React.FC = () => {
+  const { profile } = useAuth();
+  const isAdminOrOwner = profile?.role === 'OWNER' || profile?.role === 'ADMIN';
+
   const [leads, setLeads] = useState<InsuranceLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [bulkOpError, setBulkOpError] = useState<string | null>(null);
+
+  // Bulk Selection State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Bulk Dialog States
+  const [showBulkDelete, setShowBulkDelete] = useState(false);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+
+  const [showBulkStatus, setShowBulkStatus] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  const [showBulkAssign, setShowBulkAssign] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  const [showBulkFollowUp, setShowBulkFollowUp] = useState(false);
+  const [isSchedulingFu, setIsSchedulingFu] = useState(false);
+
 
   // Aggregated Pipeline Stats
   const [stats, setStats] = useState<InsuranceStats>({
@@ -191,9 +219,181 @@ export const InsuranceLeadsPage: React.FC = () => {
 
   const handleLeadDeleted = (deletedId: string) => {
     setLeads((prev) => prev.filter((l) => l.id !== deletedId));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(deletedId);
+      return next;
+    });
     setTotal((prev) => Math.max(0, prev - 1));
     fetchLeads();
     fetchStats();
+  };
+
+  // Bulk Selection Helpers
+  const visibleIds = leads.map((l) => l.id);
+  const isAllVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllVisible = () => {
+    if (isAllVisibleSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        visibleIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        visibleIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  // Bulk Action Handlers
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0 || !isAdminOrOwner) return;
+    setIsDeletingBulk(true);
+    setBulkOpError(null);
+
+    try {
+      const ids = Array.from(selectedIds);
+      const { error } = await supabase.from('insurance_leads').delete().in('id', ids);
+
+      if (error) {
+        console.error('[Credzo CRM] Bulk delete insurance leads error:', error);
+        setBulkOpError(`Failed to delete selected insurance enquiries: ${error.message}`);
+      } else {
+        setLeads((prev) => prev.filter((l) => !selectedIds.has(l.id)));
+        setTotal((prev) => Math.max(0, prev - ids.length));
+        setSelectedIds(new Set());
+        setShowBulkDelete(false);
+        setSuccessMsg(`Successfully deleted ${ids.length} insurance enquiry record${ids.length !== 1 ? 's' : ''}.`);
+        fetchLeads();
+        fetchStats();
+        setTimeout(() => setSuccessMsg(null), 4000);
+      }
+    } catch (err) {
+      console.error('[Credzo CRM] Bulk delete exception:', err);
+      setBulkOpError('Unexpected network error occurred during bulk deletion.');
+    } finally {
+      setIsDeletingBulk(false);
+    }
+  };
+
+  const handleBulkStatusChange = async (newStatus: LeadStatus) => {
+    if (selectedIds.size === 0) return;
+    setIsUpdatingStatus(true);
+    setBulkOpError(null);
+
+    try {
+      const ids = Array.from(selectedIds);
+      const { error } = await supabase
+        .from('insurance_leads')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .in('id', ids);
+
+      if (error) {
+        console.error('[Credzo CRM] Bulk status update error:', error);
+        setBulkOpError(`Failed to update status: ${error.message}`);
+      } else {
+        setLeads((prev) =>
+          prev.map((l) => (selectedIds.has(l.id) ? { ...l, status: newStatus } : l))
+        );
+        setSelectedIds(new Set());
+        setShowBulkStatus(false);
+        setSuccessMsg(`Updated status to ${newStatus} for ${ids.length} insurance enquiries.`);
+        fetchStats();
+        setTimeout(() => setSuccessMsg(null), 4000);
+      }
+    } catch (err) {
+      console.error('[Credzo CRM] Bulk status exception:', err);
+      setBulkOpError('Unexpected network error updating statuses.');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const handleBulkAssign = async (staffId: string, staffName: string) => {
+    if (selectedIds.size === 0) return;
+    setIsAssigning(true);
+    setBulkOpError(null);
+
+    try {
+      const ids = Array.from(selectedIds);
+      const { error } = await supabase
+        .from('insurance_leads')
+        .update({ assigned_to: staffId, updated_at: new Date().toISOString() })
+        .in('id', ids);
+
+      if (error) {
+        console.error('[Credzo CRM] Bulk assign insurance leads error:', error);
+        setBulkOpError(`Failed to assign insurance enquiries: ${error.message}`);
+      } else {
+        setLeads((prev) =>
+          prev.map((l) => (selectedIds.has(l.id) ? { ...l, assigned_to: staffId } : l))
+        );
+        setSelectedIds(new Set());
+        setShowBulkAssign(false);
+        setSuccessMsg(`Assigned ${ids.length} insurance enquiry record${ids.length !== 1 ? 's' : ''} to ${staffName}.`);
+        setTimeout(() => setSuccessMsg(null), 4000);
+      }
+    } catch (err) {
+      console.error('[Credzo CRM] Bulk assign exception:', err);
+      setBulkOpError('Unexpected network error during bulk assignment.');
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleBulkFollowUp = async (scheduledAt: string, noteText: string) => {
+    if (selectedIds.size === 0) return;
+    setIsSchedulingFu(true);
+    setBulkOpError(null);
+
+    try {
+      const ids = Array.from(selectedIds);
+      const selectedLeads = leads.filter((l) => selectedIds.has(l.id));
+
+      const followUpsToInsert = selectedLeads.map((l) => ({
+        insurance_lead_id: l.id,
+        organization_id: l.organization_id,
+        assigned_to: profile?.id ?? null,
+        scheduled_at: scheduledAt,
+        note: noteText || 'Bulk scheduled insurance callback',
+        status: 'PENDING' as const,
+      }));
+
+      const { error } = await supabase.from('insurance_follow_ups').insert(followUpsToInsert);
+
+      if (error) {
+        console.error('[Credzo CRM] Bulk follow-up error:', error);
+        setBulkOpError(`Failed to schedule callbacks: ${error.message}`);
+      } else {
+        setSelectedIds(new Set());
+        setShowBulkFollowUp(false);
+        setSuccessMsg(`Scheduled callback for ${ids.length} insurance enquiries.`);
+        setTimeout(() => setSuccessMsg(null), 4000);
+      }
+    } catch (err) {
+      console.error('[Credzo CRM] Bulk follow-up exception:', err);
+      setBulkOpError('Unexpected network error scheduling follow-ups.');
+    } finally {
+      setIsSchedulingFu(false);
+    }
   };
 
   const SortIcon = ({ col }: { col: typeof sortCol }) =>
@@ -209,6 +409,7 @@ export const InsuranceLeadsPage: React.FC = () => {
             Customer insurance enquiries pipeline • View, filter, and update enquiry status
           </p>
         </div>
+
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
           <button
@@ -266,25 +467,36 @@ export const InsuranceLeadsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Error Alert */}
-      {errorMsg && (
-        <div className="form-alert-error" style={{ marginBottom: 'var(--space-6)' }} role="alert">
+      {/* Success Alert */}
+      {successMsg && (
+        <div className="form-alert-success" style={{ marginBottom: 'var(--space-4)' }} role="status">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
+            <polyline points="20 6 9 17 4 12" />
           </svg>
-          <span>{errorMsg}</span>
+          <span>{successMsg}</span>
         </div>
       )}
 
-      {/* 4. Leads Management Card */}
+      {/* Error Alert */}
+      {(errorMsg || bulkOpError) && (
+        <div className="form-alert-error" style={{ marginBottom: 'var(--space-4)' }} role="alert">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{errorMsg || bulkOpError}</span>
+        </div>
+      )}
+
+      {/* 3. Main Data Card */}
       <div className="crm-card">
         {/* Filters Toolbar */}
         <div className="crm-filters-bar">
           <input
             type="search"
             className="crm-search-input"
-            placeholder="Search by applicant name, mobile, city, or insurance type..."
+            placeholder="Search by name, mobile number, or city..."
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -323,11 +535,37 @@ export const InsuranceLeadsPage: React.FC = () => {
           </select>
         </div>
 
+        {/* Select All Helper Banner */}
+        {selectedIds.size > 0 && (
+          <div className="bulk-select-all-banner">
+            <span>
+              <strong>{selectedIds.size}</strong> of {visibleIds.length} visible insurance enquiries selected on this page.
+            </span>
+            <button
+              type="button"
+              className="btn btn-outline btn-xs"
+              onClick={toggleSelectAllVisible}
+              style={{ background: '#ffffff' }}
+            >
+              {isAllVisibleSelected ? 'Deselect Page' : `Select All ${visibleIds.length} on Page`}
+            </button>
+          </div>
+        )}
+
         {/* Desktop Table View */}
         <div className="leads-table-wrapper">
           <table className="leads-table">
             <thead>
               <tr>
+                <th className="crm-checkbox-cell" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    className="crm-checkbox"
+                    checked={isAllVisibleSelected}
+                    onChange={toggleSelectAllVisible}
+                    aria-label="Select all visible insurance leads"
+                  />
+                </th>
                 <th
                   className={`sortable ${sortCol === 'created_at' ? 'th-active' : ''}`}
                   onClick={() => handleSort('created_at')}
@@ -362,7 +600,7 @@ export const InsuranceLeadsPage: React.FC = () => {
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 8 }).map((_, j) => (
+                    {Array.from({ length: 9 }).map((_, j) => (
                       <td key={j}>
                         <div className="skeleton-bar" style={{ width: '80%', height: 14 }} />
                       </td>
@@ -371,7 +609,7 @@ export const InsuranceLeadsPage: React.FC = () => {
                 ))
               ) : leads.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     <div className="empty-state">
                       <svg
                         className="empty-state-icon"
@@ -395,9 +633,19 @@ export const InsuranceLeadsPage: React.FC = () => {
                 leads.map((lead) => (
                   <tr
                     key={lead.id}
+                    className={selectedIds.has(lead.id) ? 'selected-row' : ''}
                     style={{ cursor: 'pointer' }}
                     onClick={() => setSelectedLeadId(lead.id)}
                   >
+                    <td className="crm-checkbox-cell" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        className="crm-checkbox"
+                        checked={selectedIds.has(lead.id)}
+                        onChange={() => toggleSelect(lead.id)}
+                        aria-label={`Select ${lead.full_name}`}
+                      />
+                    </td>
                     <td className="lead-date-cell">{formatDateTime(lead.created_at)}</td>
                     <td>
                       <div className="lead-name-cell">{lead.full_name}</div>
@@ -470,9 +718,32 @@ export const InsuranceLeadsPage: React.FC = () => {
             leads.map((lead) => (
               <div
                 key={lead.id}
-                className="lead-mobile-card"
+                className={`lead-mobile-card ${selectedIds.has(lead.id) ? 'selected' : ''}`}
                 onClick={() => setSelectedLeadId(lead.id)}
               >
+                {/* Mobile Selection Row */}
+                <div className="lead-mobile-card-select" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    className="crm-checkbox"
+                    checked={selectedIds.has(lead.id)}
+                    onChange={() => toggleSelect(lead.id)}
+                    id={`mobile-ins-lead-${lead.id}`}
+                    aria-label={`Select ${lead.full_name}`}
+                  />
+                  <label
+                    htmlFor={`mobile-ins-lead-${lead.id}`}
+                    style={{
+                      fontSize: 'var(--font-size-xs)',
+                      fontWeight: 600,
+                      color: selectedIds.has(lead.id) ? 'var(--color-primary)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {selectedIds.has(lead.id) ? 'Selected' : 'Select'}
+                  </label>
+                </div>
+
                 <div className="lead-mobile-header">
                   <div>
                     <div className="lead-mobile-applicant">{lead.full_name}</div>
@@ -559,6 +830,63 @@ export const InsuranceLeadsPage: React.FC = () => {
         onClose={() => setSelectedLeadId(null)}
         onLeadUpdated={handleLeadUpdated}
         onLeadDeleted={handleLeadDeleted}
+      />
+
+      {/* Sticky Bulk Actions Toolbar */}
+      <BulkActionToolbar
+        selectedCount={selectedIds.size}
+        onClearSelection={clearSelection}
+        onOpenBulkStatus={() => setShowBulkStatus(true)}
+        onOpenBulkAssign={() => setShowBulkAssign(true)}
+        onOpenBulkFollowUp={() => setShowBulkFollowUp(true)}
+        onOpenBulkDelete={() => setShowBulkDelete(true)}
+        canDelete={isAdminOrOwner}
+      />
+
+      {/* Bulk Delete Dialog */}
+      <BulkDeleteDialog
+        isOpen={showBulkDelete}
+        selectedCount={selectedIds.size}
+        leadCategory="insurance"
+        isDeleting={isDeletingBulk}
+        onConfirm={handleBulkDelete}
+        onCancel={() => {
+          if (!isDeletingBulk) setShowBulkDelete(false);
+        }}
+      />
+
+      {/* Bulk Status Dialog */}
+      <BulkStatusDialog
+        isOpen={showBulkStatus}
+        selectedCount={selectedIds.size}
+        availableStatuses={ALL_STATUSES}
+        isUpdating={isUpdatingStatus}
+        onConfirm={handleBulkStatusChange}
+        onCancel={() => {
+          if (!isUpdatingStatus) setShowBulkStatus(false);
+        }}
+      />
+
+      {/* Bulk Assign Dialog */}
+      <BulkAssignDialog
+        isOpen={showBulkAssign}
+        selectedCount={selectedIds.size}
+        isAssigning={isAssigning}
+        onConfirm={handleBulkAssign}
+        onCancel={() => {
+          if (!isAssigning) setShowBulkAssign(false);
+        }}
+      />
+
+      {/* Bulk Follow-up Dialog */}
+      <BulkFollowUpDialog
+        isOpen={showBulkFollowUp}
+        selectedCount={selectedIds.size}
+        isScheduling={isSchedulingFu}
+        onConfirm={handleBulkFollowUp}
+        onCancel={() => {
+          if (!isSchedulingFu) setShowBulkFollowUp(false);
+        }}
       />
     </div>
   );
