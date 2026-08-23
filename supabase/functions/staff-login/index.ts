@@ -232,8 +232,27 @@ serve(async (req: Request) => {
     }
 
     // --------------------------------------------------------------------------
-    // 4. Handle Authentication Success (Atomic Cleanup & Session Return)
+    // 4. Handle Authentication Success (Verify Account Status & Session Return)
     // --------------------------------------------------------------------------
+    // Check if staff profile is active
+    const { data: userProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('is_active')
+      .eq('id', authData.user.id)
+      .maybeSingle();
+
+    if (userProfile && userProfile.is_active === false) {
+      return new Response(
+        JSON.stringify({
+          error: 'Your staff account has been deactivated. Please contact your organization administrator.',
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
     // Clear any previous failed attempts for this verified user
     await supabaseAdmin
       .from('staff_login_attempts')

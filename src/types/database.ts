@@ -52,6 +52,8 @@ export interface Database {
           organization_id: string;
           full_name: string;
           role: UserRole;
+          mobile: string | null;
+          is_active: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -60,6 +62,8 @@ export interface Database {
           organization_id: string;
           full_name: string;
           role?: UserRole;
+          mobile?: string | null;
+          is_active?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -68,6 +72,8 @@ export interface Database {
           organization_id?: string;
           full_name?: string;
           role?: UserRole;
+          mobile?: string | null;
+          is_active?: boolean;
           created_at?: string;
           updated_at?: string;
         };

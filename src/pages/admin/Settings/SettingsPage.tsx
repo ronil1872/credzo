@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { useAuth } from '../../../hooks';
 import { formatIndianCurrency, LOAN_CONFIGURATIONS } from '../../../lib/calculator';
 import { LoanInterestRate } from '../../../types';
+import { TeamManagementTab } from './TeamManagementTab';
 import '../crm.css';
 
 interface EditableRateItem {
@@ -184,88 +185,142 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  const [activeTab, setActiveTab] = useState<'rates' | 'team' | 'profile'>('rates');
+
   return (
     <div>
       {/* Header */}
       <div className="crm-page-header">
         <div>
-          <h1 className="crm-page-title">CRM & Calculator Settings</h1>
+          <h1 className="crm-page-title">CRM System Settings</h1>
           <p className="crm-page-subtitle">
-            Configure baseline illustrative interest rates and boundaries used by the public loan calculator.
+            Configure lending calculator parameters, manage organization staff, and view access profiles.
           </p>
         </div>
       </div>
 
-      {/* Status Alerts */}
-      {errorMsg && (
-        <div className="form-alert-error" style={{ marginBottom: 'var(--space-4)' }} role="alert">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
-      {successMsg && (
-        <div
-          style={{
-            padding: '12px 16px',
-            background: 'rgba(5, 150, 105, 0.1)',
-            border: '1px solid rgba(5, 150, 105, 0.3)',
-            borderRadius: 'var(--radius-lg)',
-            color: 'var(--color-success)',
-            fontWeight: 600,
-            marginBottom: 'var(--space-4)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-          role="status"
+      {/* Settings Navigation Tabs */}
+      <div className="crm-modal-tabs" style={{ marginBottom: 'var(--space-6)', borderBottom: '1px solid var(--border-subtle)' }}>
+        <button
+          type="button"
+          className={`crm-modal-tab ${activeTab === 'rates' ? 'active' : ''}`}
+          onClick={() => setActiveTab('rates')}
         >
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          <span>{successMsg}</span>
-        </div>
+          📈 Loan Rates & Boundaries
+        </button>
+
+        {isAdminOrOwner && (
+          <button
+            type="button"
+            className={`crm-modal-tab ${activeTab === 'team' ? 'active' : ''}`}
+            onClick={() => setActiveTab('team')}
+          >
+            👥 Team & Staff Management
+          </button>
+        )}
+
+        <button
+          type="button"
+          className={`crm-modal-tab ${activeTab === 'profile' ? 'active' : ''}`}
+          onClick={() => setActiveTab('profile')}
+        >
+          🔐 Profile & Security
+        </button>
+      </div>
+
+      {/* Tab 1: Team & Staff Management */}
+      {activeTab === 'team' && isAdminOrOwner && (
+        <TeamManagementTab />
       )}
 
-      {/* User & Organization Profile Context */}
-      <div className="crm-card" style={{ marginBottom: 'var(--space-6)' }}>
-        <div className="crm-card-header">
-          <span className="crm-card-title">Staff Profile & Session</span>
-        </div>
-        <div style={{ padding: 'var(--space-4) var(--space-5)' }}>
-          <div className="info-grid">
-            <div className="info-item">
-              <span className="info-label">Full Name</span>
-              <span className="info-value">{profile?.full_name || 'Staff User'}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Email Account</span>
-              <span className="info-value">{user?.email || '—'}</span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Assigned Role</span>
-              <span className="info-value">
-                <span className={`status-badge ${profile?.role === 'OWNER' ? 'NEW' : profile?.role === 'ADMIN' ? 'CONTACTED' : 'DOCUMENTS'}`}>
-                  {profile?.role || 'STAFF'}
+      {/* Tab 2: Profile & Security */}
+      {activeTab === 'profile' && (
+        <div className="crm-card" style={{ marginBottom: 'var(--space-6)' }}>
+          <div className="crm-card-header">
+            <span className="crm-card-title">Staff Profile & Session Security</span>
+          </div>
+          <div style={{ padding: 'var(--space-4) var(--space-5)' }}>
+            <div className="info-grid">
+              <div className="info-item">
+                <span className="info-label">Full Name</span>
+                <span className="info-value">{profile?.full_name || 'Staff User'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Email Account</span>
+                <span className="info-value">{user?.email || '—'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Contact Number</span>
+                <span className="info-value">{profile?.mobile ? `+91 ${profile.mobile}` : 'Not registered'}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Assigned Role</span>
+                <span className="info-value">
+                  <span className={`status-badge ${profile?.role === 'OWNER' ? 'NEW' : profile?.role === 'ADMIN' ? 'CONTACTED' : 'DOCUMENTS'}`}>
+                    {profile?.role || 'STAFF'}
+                  </span>
                 </span>
-              </span>
-            </div>
-            <div className="info-item">
-              <span className="info-label">Permission Level</span>
-              <span className="info-value" style={{ fontSize: 'var(--font-size-xs)' }}>
-                {isAdminOrOwner ? '✅ Full Rate Management & CRM Control' : '👁️ Read-Only Rate Access'}
-              </span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Account Status</span>
+                <span className="info-value" style={{ color: profile?.is_active !== false ? '#047857' : '#dc2626', fontWeight: 700 }}>
+                  {profile?.is_active !== false ? '● Active' : '● Deactivated'}
+                </span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Permission Level</span>
+                <span className="info-value" style={{ fontSize: 'var(--font-size-xs)' }}>
+                  {profile?.role === 'OWNER'
+                    ? '👑 Organization Owner (Full Control & Team Provisioning)'
+                    : profile?.role === 'ADMIN'
+                    ? '🛡️ Administrator (CRM, Rates & Staff Management)'
+                    : '👤 Staff Member (Lead & Follow-up Operations)'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Loan Products Interest Rate Management */}
-      <div className="crm-card">
+      {/* Tab 3: Loan Rates & Limits */}
+      {activeTab === 'rates' && (
+        <>
+          {/* Status Alerts */}
+          {errorMsg && (
+            <div className="form-alert-error" style={{ marginBottom: 'var(--space-4)' }} role="alert">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div
+              style={{
+                padding: '12px 16px',
+                background: 'rgba(5, 150, 105, 0.1)',
+                border: '1px solid rgba(5, 150, 105, 0.3)',
+                borderRadius: 'var(--radius-lg)',
+                color: 'var(--color-success)',
+                fontWeight: 600,
+                marginBottom: 'var(--space-4)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+              role="status"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          <div className="crm-card">
         <div className="crm-card-header">
           <div>
             <span className="crm-card-title">Illustrative Loan Rates & Limits</span>
@@ -648,6 +703,8 @@ export const SettingsPage: React.FC = () => {
           )}
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };

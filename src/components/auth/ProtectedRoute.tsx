@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks';
 
 export const ProtectedRoute: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, profile, loading, signOut } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -41,6 +41,11 @@ export const ProtectedRoute: React.FC = () => {
   if (!user) {
     // Redirect unauthenticated requests to login, preserving intended path
     return <Navigate to="/admin/login" state={{ from: location }} replace />;
+  }
+
+  if (profile && profile.is_active === false) {
+    signOut();
+    return <Navigate to="/admin/login" state={{ deact: true }} replace />;
   }
 
   return <Outlet />;

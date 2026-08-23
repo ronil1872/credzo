@@ -23,6 +23,13 @@ export const LoginPage: React.FC = () => {
   // Intended destination after login
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/admin';
 
+  // If redirected because of deactivation, display clear notice
+  useEffect(() => {
+    if ((location.state as { deact?: boolean })?.deact) {
+      setErrorMsg('Your staff account has been deactivated. Please contact your organization administrator.');
+    }
+  }, [location.state]);
+
   // If already authenticated, redirect immediately
   useEffect(() => {
     if (!loading && user) {
