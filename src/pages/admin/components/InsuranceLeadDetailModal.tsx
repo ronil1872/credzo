@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../hooks';
 import { RelatedEnquiriesCard } from './RelatedEnquiriesCard';
+import { DeleteLeadDialog } from './DeleteLeadDialog';
 import {
   InsuranceLead,
   InsuranceLeadNote,
@@ -16,6 +17,7 @@ interface InsuranceLeadDetailModalProps {
   leadId: string | null;
   onClose: () => void;
   onLeadUpdated?: (updatedLead: InsuranceLead) => void;
+  onLeadDeleted?: (deletedLeadId: string) => void;
 }
 
 const ALL_STATUSES: LeadStatus[] = [
@@ -57,8 +59,10 @@ export const InsuranceLeadDetailModal: React.FC<InsuranceLeadDetailModalProps> =
   leadId,
   onClose,
   onLeadUpdated,
+  onLeadDeleted,
 }) => {
   const { profile } = useAuth();
+  const isAdminOrOwner = profile?.role === 'OWNER' || profile?.role === 'ADMIN';
 
   const [lead, setLead] = useState<InsuranceLead | null>(null);
   const [notes, setNotes] = useState<InsuranceLeadNote[]>([]);
@@ -67,6 +71,9 @@ export const InsuranceLeadDetailModal: React.FC<InsuranceLeadDetailModalProps> =
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Edit fields
   const [selectedStatus, setSelectedStatus] = useState<LeadStatus>('NEW');
@@ -86,12 +93,14 @@ export const InsuranceLeadDetailModal: React.FC<InsuranceLeadDetailModalProps> =
       setNotes([]);
       setFollowUps([]);
       setLoading(false);
+      setDeleteError(null);
       return;
     }
 
     let isMounted = true;
     setLoading(true);
     setErrorMsg(null);
+    setDeleteError(null);
 
     const fetchLeadData = async () => {
       try {
@@ -109,22 +118,18 @@ export const InsuranceLeadDetailModal: React.FC<InsuranceLeadDetailModalProps> =
             .order('scheduled_at', { ascending: true }),
         ]);
 
-        if (leadRes.error) {
-          console.error('[Credzo CRM] Error loading insurance lead detail:', leadRes.error);
-          if (isMounted) setErrorMsg('Failed to load insurance lead details.');
-        } else if (isMounted && leadRes.data) {
+        if (isMounted && leadRes.data) {
           const l = leadRes.data as InsuranceLead;
           setLead(l);
-          setSelectedStatus(l.status as LeadStatus);
-        }
-
-        if (isMounted) {
+          setSelectedStatus(l.status);
           setNotes((notesRes.data as InsuranceLeadNote[]) || []);
           setFollowUps((fuRes.data as InsuranceFollowUp[]) || []);
+        } else if (isMounted && !leadRes.data) {
+          setLead(null);
         }
       } catch (err) {
-        console.error('[Credzo CRM] Unexpected error loading insurance lead modal:', err);
-        if (isMounted) setErrorMsg('Network error loading enquiry.');
+        console.error('[Credzo CRM] Error loading insurance lead modal data:', err);
+        if (isMounted) setErrorMsg('Could not load insurance enquiry data.');
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -140,13 +145,42 @@ export const InsuranceLeadDetailModal: React.FC<InsuranceLeadDetailModalProps> =
   // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !showDeleteDialog) onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, showDeleteDialog]);
 
-  // 3. Status Update Handler
+  if (!leadId) return null;
+
+  const handleDeleteLead = async () => {
+    if (!leadId || !isAdminOrOwner) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const { error } = await supabase.from('insurance_leads').delete().eq('id', leadId);
+      if (error) {
+        console.error('[Credzo CRM] Insurance lead deletion error:', error);
+        setDeleteError(`Failed to delete insurance enquiry: ${error.message}`);
+        setIsDeleting(false);
+        setShowDeleteDialog(false);
+        return;
+      }
+
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+      onLeadDeleted?.(leadId);
+      onClose();
+    } catch (err: unknown) {
+      console.error('[Credzo CRM] Unexpected insurance lead deletion error:', err);
+      setDeleteError('An unexpected error occurred while deleting insurance enquiry.');
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  // 1. Status Update Handler
   const handleSaveStatus = async () => {
     if (!lead || !leadId) return;
     setSaving(true);
@@ -163,34 +197,33 @@ export const InsuranceLeadDetailModal: React.FC<InsuranceLeadDetailModalProps> =
         })
         .eq('id', leadId);
 
-      if (error) {
-        console.error('[Credzo CRM] Error updating insurance lead status:', error);
-        setErrorMsg('Failed to update status.');
-      } else {
+      if (!error) {
         const updated: InsuranceLead = {
           ...lead,
           status: selectedStatus,
           updated_at: nowIso,
         };
         setLead(updated);
+        onLeadUpdated?.(updated);
         setSaveMsg('Status updated successfully.');
-        if (onLeadUpdated) {
-          onLeadUpdated(updated);
-        }
+      } else {
+        console.error('[Credzo CRM] Insurance status update error:', error);
+        setErrorMsg('Error saving status updates. Please try again.');
       }
     } catch (err) {
-      console.error('[Credzo CRM] Unexpected error during status update:', err);
-      setErrorMsg('Network error while saving status.');
+      console.error('[Credzo CRM] Status update exception:', err);
+      setErrorMsg('Unexpected error updating status.');
     } finally {
       setSaving(false);
       setTimeout(() => setSaveMsg(null), 3000);
     }
   };
 
-  // 5. Add Note Handler
+  // 2. Add Internal Note Handler
   const handleAddNote = async () => {
     if (!newNote.trim() || !leadId || !lead) return;
     setSavingNote(true);
+    setErrorMsg(null);
 
     try {
       const { data, error } = await supabase
@@ -198,7 +231,7 @@ export const InsuranceLeadDetailModal: React.FC<InsuranceLeadDetailModalProps> =
         .insert({
           insurance_lead_id: leadId,
           organization_id: lead.organization_id,
-          author_id: profile?.id || null,
+          author_id: profile?.id ?? null,
           note: newNote.trim(),
         })
         .select()
@@ -208,19 +241,22 @@ export const InsuranceLeadDetailModal: React.FC<InsuranceLeadDetailModalProps> =
         setNotes((prev) => [data as InsuranceLeadNote, ...prev]);
         setNewNote('');
       } else if (error) {
-        console.error('[Credzo CRM] Note addition error:', error);
+        console.error('[Credzo CRM] Note insert error:', error);
+        setErrorMsg('Failed to save note.');
       }
     } catch (err) {
-      console.error('[Credzo CRM] Note addition exception:', err);
+      console.error('[Credzo CRM] Note save exception:', err);
+      setErrorMsg('Unexpected error saving note.');
     } finally {
       setSavingNote(false);
     }
   };
 
-  // 6. Schedule Follow-up Handler
+  // 3. Schedule Follow-up Handler
   const handleAddFollowUp = async () => {
     if (!fuDate || !leadId || !lead) return;
     setSavingFu(true);
+    setErrorMsg(null);
 
     try {
       const { data, error } = await supabase
@@ -228,7 +264,7 @@ export const InsuranceLeadDetailModal: React.FC<InsuranceLeadDetailModalProps> =
         .insert({
           insurance_lead_id: leadId,
           organization_id: lead.organization_id,
-          assigned_to: profile?.id || null,
+          assigned_to: profile?.id ?? null,
           scheduled_at: new Date(fuDate).toISOString(),
           note: fuNote.trim() || null,
           status: 'PENDING',
@@ -246,9 +282,11 @@ export const InsuranceLeadDetailModal: React.FC<InsuranceLeadDetailModalProps> =
         setFuNote('');
       } else if (error) {
         console.error('[Credzo CRM] Follow-up creation error:', error);
+        setErrorMsg('Failed to create follow-up.');
       }
     } catch (err) {
       console.error('[Credzo CRM] Follow-up creation exception:', err);
+      setErrorMsg('Unexpected error creating follow-up.');
     } finally {
       setSavingFu(false);
     }
@@ -286,54 +324,80 @@ export const InsuranceLeadDetailModal: React.FC<InsuranceLeadDetailModalProps> =
     }
   };
 
-  if (!leadId) return null;
-
   return (
-    <div className="crm-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="crm-modal-window insurance-modal-window" onClick={(e) => e.stopPropagation()}>
-        {/* Modal Header */}
-        <div className="crm-modal-header">
-          <div className="crm-modal-header-info">
-            <div className="crm-modal-badges">
+    <>
+      <div className="crm-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
+        <div className="crm-modal-window insurance-modal-window" onClick={(e) => e.stopPropagation()}>
+          {/* Modal Header */}
+          <div className="crm-modal-header">
+            <div className="crm-modal-header-info">
+              <div className="crm-modal-badges">
+                {lead && (
+                  <>
+                    <span className={`status-badge ${lead.status}`}>{lead.status}</span>
+                    <span className="lead-type-badge">{lead.insurance_type}</span>
+                    <span className="lead-ref-pill">#{lead.id.slice(0, 8).toUpperCase()}</span>
+                  </>
+                )}
+              </div>
+              <h2 className="crm-modal-title">
+                {loading ? 'Loading enquiry...' : lead?.full_name || 'Insurance Enquiry'}
+              </h2>
               {lead && (
-                <>
-                  <span className={`status-badge ${lead.status}`}>{lead.status}</span>
-                  <span className="lead-type-badge">{lead.insurance_type}</span>
-                  <span className="lead-ref-pill">#{lead.id.slice(0, 8).toUpperCase()}</span>
-                </>
+                <p className="crm-modal-subtitle">
+                  Received on {formatDateTime(lead.created_at)} • {lead.insurance_type} from {lead.city || 'India'}
+                </p>
               )}
             </div>
-            <h2 className="crm-modal-title">
-              {loading ? 'Loading enquiry...' : lead?.full_name || 'Insurance Enquiry'}
-            </h2>
-            {lead && (
-              <p className="crm-modal-subtitle">
-                Received on {formatDateTime(lead.created_at)} • {lead.insurance_type} from {lead.city || 'India'}
-              </p>
-            )}
+
+            <div className="crm-modal-header-actions">
+              {lead && (
+                <Link
+                  to={`/admin/insurance/${lead.id}`}
+                  className="btn btn-outline btn-xs"
+                  onClick={onClose}
+                  title="Open full page workspace"
+                >
+                  Full Page ↗
+                </Link>
+              )}
+              {lead && isAdminOrOwner && (
+                <button
+                  type="button"
+                  className="btn btn-outline-danger btn-xs"
+                  onClick={() => setShowDeleteDialog(true)}
+                  title="Permanently delete this enquiry (Admin/Owner only)"
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 6h18" />
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                  </svg>
+                  <span>Delete</span>
+                </button>
+              )}
+              <button
+                type="button"
+                className="crm-modal-close-btn"
+                onClick={onClose}
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
-          <div className="crm-modal-header-actions">
-            {lead && (
-              <Link
-                to={`/admin/insurance/${lead.id}`}
-                className="btn btn-outline btn-xs"
-                onClick={onClose}
-                title="Open full page workspace"
-              >
-                Full Page ↗
-              </Link>
-            )}
-            <button
-              type="button"
-              className="crm-modal-close-btn"
-              onClick={onClose}
-              aria-label="Close dialog"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
+          {/* Delete Error Notification */}
+          {deleteError && (
+            <div className="form-alert-error" role="alert" style={{ margin: 'var(--space-3) var(--space-4) 0' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{deleteError}</span>
+            </div>
+          )}
 
         {/* Modal Body */}
         <div className="insurance-modal-body">
@@ -706,5 +770,21 @@ export const InsuranceLeadDetailModal: React.FC<InsuranceLeadDetailModalProps> =
         </div>
       </div>
     </div>
+
+    {/* Delete Confirmation Dialog */}
+    {lead && (
+      <DeleteLeadDialog
+        isOpen={showDeleteDialog}
+        leadName={lead.full_name}
+        leadRef={lead.id.slice(0, 8)}
+        leadType={lead.insurance_type}
+        isDeleting={isDeleting}
+        onConfirm={handleDeleteLead}
+        onCancel={() => {
+          if (!isDeleting) setShowDeleteDialog(false);
+        }}
+      />
+    )}
+  </>
   );
 };

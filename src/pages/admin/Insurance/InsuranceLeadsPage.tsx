@@ -189,6 +189,13 @@ export const InsuranceLeadsPage: React.FC = () => {
     fetchStats();
   };
 
+  const handleLeadDeleted = (deletedId: string) => {
+    setLeads((prev) => prev.filter((l) => l.id !== deletedId));
+    setTotal((prev) => Math.max(0, prev - 1));
+    fetchLeads();
+    fetchStats();
+  };
+
   const SortIcon = ({ col }: { col: typeof sortCol }) =>
     sortCol === col ? (sortAsc ? ' ↑' : ' ↓') : ' ↕';
 
@@ -551,6 +558,7 @@ export const InsuranceLeadsPage: React.FC = () => {
         leadId={selectedLeadId}
         onClose={() => setSelectedLeadId(null)}
         onLeadUpdated={handleLeadUpdated}
+        onLeadDeleted={handleLeadDeleted}
       />
     </div>
   );

@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { useAuth } from '../../../hooks';
 import { RelatedEnquiriesCard } from '../components/RelatedEnquiriesCard';
+import { DeleteLeadDialog } from '../components/DeleteLeadDialog';
 import {
   InsuranceLead,
   InsuranceLeadNote,
@@ -49,7 +50,9 @@ const formatDate = (iso?: string | null) => {
 
 export const InsuranceLeadDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { profile } = useAuth();
+  const isAdminOrOwner = profile?.role === 'OWNER' || profile?.role === 'ADMIN';
 
   const [lead, setLead] = useState<InsuranceLead | null>(null);
   const [notes, setNotes] = useState<InsuranceLeadNote[]>([]);
@@ -58,6 +61,10 @@ export const InsuranceLeadDetailPage: React.FC = () => {
   const [savingStatus, setSavingStatus] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
 
   // Edit status
   const [selectedStatus, setSelectedStatus] = useState<LeadStatus>('NEW');
@@ -251,6 +258,32 @@ export const InsuranceLeadDetailPage: React.FC = () => {
     }
   };
 
+  const handleDeleteLead = async () => {
+    if (!id || !isAdminOrOwner) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const { error } = await supabase.from('insurance_leads').delete().eq('id', id);
+      if (error) {
+        console.error('[Credzo CRM] Insurance lead delete error:', error);
+        setDeleteError(`Failed to delete insurance enquiry: ${error.message}`);
+        setIsDeleting(false);
+        setShowDeleteDialog(false);
+        return;
+      }
+
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+      navigate('/admin/insurance');
+    } catch (err: unknown) {
+      console.error('[Credzo CRM] Unexpected insurance lead delete error:', err);
+      setDeleteError('An unexpected error occurred while deleting insurance enquiry.');
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   if (loading) {
     return (
       <div>
@@ -323,8 +356,35 @@ export const InsuranceLeadDetailPage: React.FC = () => {
             </svg>
             WhatsApp
           </a>
+          {isAdminOrOwner && (
+            <button
+              type="button"
+              className="action-btn btn-outline-danger"
+              onClick={() => setShowDeleteDialog(true)}
+              title="Permanently delete this enquiry (Admin/Owner only)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18" />
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+              Delete Enquiry
+            </button>
+          )}
         </div>
       </div>
+
+      {deleteError && (
+        <div className="form-alert-error" role="alert" style={{ marginBottom: 'var(--space-4)' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{deleteError}</span>
+        </div>
+      )}
+
 
       {errorMsg && (
         <div className="form-alert-error" role="alert" style={{ marginBottom: 'var(--space-4)' }}>
@@ -733,6 +793,21 @@ export const InsuranceLeadDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {lead && (
+        <DeleteLeadDialog
+          isOpen={showDeleteDialog}
+          leadName={lead.full_name}
+          leadRef={lead.id.slice(0, 8)}
+          leadType={lead.insurance_type}
+          isDeleting={isDeleting}
+          onConfirm={handleDeleteLead}
+          onCancel={() => {
+            if (!isDeleting) setShowDeleteDialog(false);
+          }}
+        />
+      )}
     </div>
   );
 };

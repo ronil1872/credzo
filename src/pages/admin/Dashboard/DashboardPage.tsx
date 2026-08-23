@@ -156,6 +156,12 @@ export const DashboardPage: React.FC = () => {
     setAllLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
   };
 
+  // Handle lead deletion from Modal
+  const handleLeadDeleted = (deletedId: string) => {
+    setAllLeads((prev) => prev.filter((l) => l.id !== deletedId));
+    fetchDashboardData();
+  };
+
   // Filter recent leads table
   const filteredRecentLeads = allLeads.filter((lead) => {
     if (statusFilter && lead.status !== statusFilter) return false;
@@ -580,6 +586,7 @@ export const DashboardPage: React.FC = () => {
         leadId={selectedLeadId}
         onClose={() => setSelectedLeadId(null)}
         onLeadUpdated={handleLeadUpdated}
+        onLeadDeleted={handleLeadDeleted}
       />
     </div>
   );

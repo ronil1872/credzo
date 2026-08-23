@@ -141,6 +141,12 @@ export const LeadsPage: React.FC = () => {
     setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
   };
 
+  const handleLeadDeleted = (deletedId: string) => {
+    setLeads((prev) => prev.filter((l) => l.id !== deletedId));
+    setTotal((prev) => Math.max(0, prev - 1));
+    fetchLeads();
+  };
+
   const SortIcon = ({ col }: { col: typeof sortCol }) =>
     sortCol === col ? (sortAsc ? ' ↑' : ' ↓') : ' ↕';
 
@@ -492,6 +498,7 @@ export const LeadsPage: React.FC = () => {
         leadId={selectedLeadId}
         onClose={() => setSelectedLeadId(null)}
         onLeadUpdated={handleLeadUpdated}
+        onLeadDeleted={handleLeadDeleted}
       />
     </div>
   );

@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { formatIndianCurrency, formatTenureDisplay } from '../../../lib/calculator';
 import { RelatedEnquiriesCard } from '../components/RelatedEnquiriesCard';
+import { DeleteLeadDialog } from '../components/DeleteLeadDialog';
 import { useAuth } from '../../../hooks';
 import { Lead, LeadStatus, LeadNote, FollowUp } from '../../../types/database';
 import '../crm.css';
@@ -31,6 +32,7 @@ export const LeadDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const isAdminOrOwner = profile?.role === 'OWNER' || profile?.role === 'ADMIN';
 
   const [lead, setLead] = useState<Lead | null>(null);
   const [notes, setNotes] = useState<LeadNote[]>([]);
@@ -38,6 +40,10 @@ export const LeadDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
 
   // Edit state
   const [selectedStatus, setSelectedStatus] = useState<LeadStatus>('NEW');
@@ -173,6 +179,32 @@ export const LeadDetailPage: React.FC = () => {
     );
   };
 
+  const handleDeleteLead = async () => {
+    if (!id || !isAdminOrOwner) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const { error } = await supabase.from('leads').delete().eq('id', id);
+      if (error) {
+        console.error('[Credzo CRM] Lead delete error:', error);
+        setDeleteError(`Failed to delete lead: ${error.message}`);
+        setIsDeleting(false);
+        setShowDeleteDialog(false);
+        return;
+      }
+
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+      navigate('/admin/leads');
+    } catch (err: unknown) {
+      console.error('[Credzo CRM] Unexpected lead delete error:', err);
+      setDeleteError('An unexpected error occurred while deleting lead.');
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
   if (loading) {
     return (
       <div>
@@ -213,6 +245,7 @@ export const LeadDetailPage: React.FC = () => {
             {lead.name}
           </h1>
           <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-1)', flexWrap: 'wrap' }}>
+            <span className="lead-ref-pill">#{lead.id.slice(0, 8).toUpperCase()}</span>
             <span className={`status-badge ${lead.status}`}>{lead.status}</span>
             <span className={`temp-badge ${lead.lead_score}`}>
               {lead.lead_score === 'HOT' ? '🔥' : lead.lead_score === 'WARM' ? '🌡️' : '❄️'} {lead.lead_score}
@@ -242,8 +275,35 @@ export const LeadDetailPage: React.FC = () => {
             </svg>
             WhatsApp
           </a>
+          {isAdminOrOwner && (
+            <button
+              type="button"
+              className="action-btn btn-outline-danger"
+              onClick={() => setShowDeleteDialog(true)}
+              title="Permanently delete this lead (Admin/Owner only)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18" />
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+              </svg>
+              Delete Lead
+            </button>
+          )}
         </div>
       </div>
+
+      {deleteError && (
+        <div className="form-alert-error" role="alert" style={{ marginBottom: 'var(--space-4)' }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span>{deleteError}</span>
+        </div>
+      )}
+
 
       <div className="lead-detail-container">
         {/* Left: Main Info */}
@@ -582,6 +642,21 @@ export const LeadDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {lead && (
+        <DeleteLeadDialog
+          isOpen={showDeleteDialog}
+          leadName={lead.name}
+          leadRef={lead.id.slice(0, 8)}
+          leadType={LOAN_TYPE_LABELS[lead.loan_type] || lead.loan_type}
+          isDeleting={isDeleting}
+          onConfirm={handleDeleteLead}
+          onCancel={() => {
+            if (!isDeleting) setShowDeleteDialog(false);
+          }}
+        />
+      )}
     </div>
   );
 };

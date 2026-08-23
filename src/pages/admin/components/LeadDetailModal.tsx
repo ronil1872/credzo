@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { formatIndianCurrency, formatTenureDisplay } from '../../../lib/calculator';
 import { RelatedEnquiriesCard } from './RelatedEnquiriesCard';
+import { DeleteLeadDialog } from './DeleteLeadDialog';
 import { useAuth } from '../../../hooks';
 import { Lead, LeadStatus, LeadNote, FollowUp } from '../../../types/database';
 import '../crm.css';
@@ -11,6 +12,7 @@ interface LeadDetailModalProps {
   leadId: string | null;
   onClose: () => void;
   onLeadUpdated?: (updatedLead: Lead) => void;
+  onLeadDeleted?: (deletedLeadId: string) => void;
 }
 
 const LOAN_TYPE_LABELS: Record<string, string> = {
@@ -67,8 +69,10 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   leadId,
   onClose,
   onLeadUpdated,
+  onLeadDeleted,
 }) => {
   const { profile } = useAuth();
+  const isAdminOrOwner = profile?.role === 'OWNER' || profile?.role === 'ADMIN';
 
   const [lead, setLead] = useState<Lead | null>(null);
   const [notes, setNotes] = useState<LeadNote[]>([]);
@@ -76,6 +80,9 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Edit fields
   const [selectedStatus, setSelectedStatus] = useState<LeadStatus>('NEW');
@@ -99,11 +106,13 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
     if (!leadId) {
       setLead(null);
       setLoading(false);
+      setDeleteError(null);
       return;
     }
 
     let isMounted = true;
     setLoading(true);
+    setDeleteError(null);
 
     const fetchLeadData = async () => {
       try {
@@ -148,13 +157,40 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   // Handle escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !showDeleteDialog) onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, showDeleteDialog]);
 
   if (!leadId) return null;
+
+  const handleDeleteLead = async () => {
+    if (!leadId || !isAdminOrOwner) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const { error } = await supabase.from('leads').delete().eq('id', leadId);
+      if (error) {
+        console.error('[Credzo CRM] Lead deletion error:', error);
+        setDeleteError(`Failed to delete lead: ${error.message}`);
+        setIsDeleting(false);
+        setShowDeleteDialog(false);
+        return;
+      }
+
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+      onLeadDeleted?.(leadId);
+      onClose();
+    } catch (err: unknown) {
+      console.error('[Credzo CRM] Unexpected lead deletion error:', err);
+      setDeleteError('An unexpected network error occurred while deleting lead.');
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
 
   const handleSaveStatus = async () => {
     if (!lead || !leadId) return;
@@ -261,49 +297,78 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
   };
 
   return (
-    <div className="crm-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="crm-modal-window" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="crm-modal-header">
-          <div className="crm-modal-header-info">
-            <div className="crm-modal-badges">
+    <>
+      <div className="crm-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
+        <div className="crm-modal-window" onClick={(e) => e.stopPropagation()}>
+          {/* Header */}
+          <div className="crm-modal-header">
+            <div className="crm-modal-header-info">
+              <div className="crm-modal-badges">
+                {lead && (
+                  <>
+                    <span className={`status-badge ${lead.status}`}>{lead.status}</span>
+                    <span className={`temp-badge ${lead.lead_score}`}>
+                      {lead.lead_score === 'HOT' ? '🔥' : lead.lead_score === 'WARM' ? '🌡️' : '❄️'}{' '}
+                      {lead.lead_score}
+                    </span>
+                    <span className="lead-ref-pill">#{lead.id.slice(0, 8).toUpperCase()}</span>
+                  </>
+                )}
+              </div>
+              <h2 className="crm-modal-title">{lead ? lead.name : 'Loading Lead Details...'}</h2>
               {lead && (
-                <>
-                  <span className={`status-badge ${lead.status}`}>{lead.status}</span>
-                  <span className={`temp-badge ${lead.lead_score}`}>
-                    {lead.lead_score === 'HOT' ? '🔥' : lead.lead_score === 'WARM' ? '🌡️' : '❄️'}{' '}
-                    {lead.lead_score}
-                  </span>
-                  <span className="lead-ref-pill">#{lead.id.slice(0, 8).toUpperCase()}</span>
-                </>
+                <p className="crm-modal-subtitle">
+                  Received on {formatDateTime(lead.created_at)} •{' '}
+                  {LOAN_TYPE_LABELS[lead.loan_type] || lead.loan_type} of{' '}
+                  {formatIndianCurrency(lead.requested_amount)}
+                </p>
               )}
             </div>
-            <h2 className="crm-modal-title">{lead ? lead.name : 'Loading Lead Details...'}</h2>
-            {lead && (
-              <p className="crm-modal-subtitle">
-                Received on {formatDateTime(lead.created_at)} •{' '}
-                {LOAN_TYPE_LABELS[lead.loan_type] || lead.loan_type} of{' '}
-                {formatIndianCurrency(lead.requested_amount)}
-              </p>
-            )}
+
+            <div className="crm-modal-header-actions">
+              {lead && (
+                <Link to={`/admin/leads/${lead.id}`} className="btn btn-outline btn-xs">
+                  Full Page ↗
+                </Link>
+              )}
+              {lead && isAdminOrOwner && (
+                <button
+                  type="button"
+                  className="btn btn-outline-danger btn-xs"
+                  onClick={() => setShowDeleteDialog(true)}
+                  title="Permanently delete this lead (Admin/Owner only)"
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 6h18" />
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                  </svg>
+                  <span>Delete</span>
+                </button>
+              )}
+              <button
+                type="button"
+                className="crm-modal-close-btn"
+                onClick={onClose}
+                aria-label="Close dialog"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
-          <div className="crm-modal-header-actions">
-            {lead && (
-              <Link to={`/admin/leads/${lead.id}`} className="btn btn-outline btn-xs">
-                Full Page ↗
-              </Link>
-            )}
-            <button
-              type="button"
-              className="crm-modal-close-btn"
-              onClick={onClose}
-              aria-label="Close dialog"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
+          {/* Delete Error Notification */}
+          {deleteError && (
+            <div className="form-alert-error" role="alert" style={{ margin: 'var(--space-3) var(--space-4) 0' }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{deleteError}</span>
+            </div>
+          )}
+
 
         {/* Quick Contact Bar */}
         {lead && (
@@ -779,5 +844,21 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
         </div>
       </div>
     </div>
+
+    {/* Delete Confirmation Dialog */}
+    {lead && (
+      <DeleteLeadDialog
+        isOpen={showDeleteDialog}
+        leadName={lead.name}
+        leadRef={lead.id.slice(0, 8)}
+        leadType={LOAN_TYPE_LABELS[lead.loan_type] || lead.loan_type}
+        isDeleting={isDeleting}
+        onConfirm={handleDeleteLead}
+        onCancel={() => {
+          if (!isDeleting) setShowDeleteDialog(false);
+        }}
+      />
+    )}
+  </>
   );
 };
