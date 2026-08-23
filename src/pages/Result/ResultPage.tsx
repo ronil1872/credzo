@@ -783,8 +783,8 @@ export const ResultPage: React.FC = () => {
                 disabled={isSubmitting}
               >
                 {isSubmitting
-                  ? 'Registering Your Callback...'
-                  : 'Request Free Callback →'}
+                  ? 'Registering Your Request...'
+                  : 'Request a Call From Our Team →'}
               </button>
             </div>
           </form>

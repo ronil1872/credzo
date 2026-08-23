@@ -426,12 +426,29 @@ export const InsurancePage: React.FC = () => {
             </div>
           ) : (
             <>
+              {/* Quick Callback Assist Banner on Mobile */}
+              <div className="insurance-quick-callback-banner">
+                <div className="quick-callback-content">
+                  <div className="quick-callback-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="quick-callback-title">Prefer a quick phone consultation?</h4>
+                    <p className="quick-callback-subtitle">
+                      Zero fee advisory across top insurers. You can submit this full enquiry or use the fixed <strong>Request a Call</strong> button below.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="form-header-bordered">
                 <h2 className="insurance-form-title">
-                  Request an Insurance Callback
+                  Submit an Insurance Enquiry
                 </h2>
                 <p className="insurance-form-desc">
-                  Selected Category: <strong>{getCategoryTitle(formData.insuranceCategory)}</strong>. Fill out your details below to speak with an advisory specialist.
+                  Selected Category: <strong>{getCategoryTitle(formData.insuranceCategory)}</strong>. Fill out your details below to receive tailored policy options.
                 </p>
               </div>
 
@@ -445,6 +462,7 @@ export const InsurancePage: React.FC = () => {
                     id="fullName"
                     name="fullName"
                     type="text"
+                    autoComplete="name"
                     className={`text-input ${errors.fullName ? 'input-error' : ''}`}
                     placeholder="e.g. Rahul Sharma"
                     value={formData.fullName}
@@ -473,6 +491,7 @@ export const InsurancePage: React.FC = () => {
                       name="mobile"
                       type="tel"
                       inputMode="numeric"
+                      autoComplete="tel"
                       maxLength={10}
                       className="mobile-input-field"
                       placeholder="9876543210"
@@ -503,6 +522,8 @@ export const InsurancePage: React.FC = () => {
                       id="email"
                       name="email"
                       type="email"
+                      inputMode="email"
+                      autoComplete="email"
                       className={`text-input ${errors.email ? 'input-error' : ''}`}
                       placeholder="e.g. rahul@example.com"
                       value={formData.email}
@@ -527,6 +548,7 @@ export const InsurancePage: React.FC = () => {
                       id="city"
                       name="city"
                       type="text"
+                      autoComplete="address-level2"
                       className={`text-input ${errors.city ? 'input-error' : ''}`}
                       placeholder="e.g. Mumbai, Delhi, Pune"
                       value={formData.city}

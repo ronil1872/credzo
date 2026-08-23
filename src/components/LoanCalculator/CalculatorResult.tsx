@@ -12,6 +12,7 @@ interface CalculatorResultProps {
   employmentType?: string;
   city?: string;
   justCalculated?: boolean;
+  onRequestCall?: () => void;
 }
 
 export const CalculatorResult: React.FC<CalculatorResultProps> = ({
@@ -23,6 +24,7 @@ export const CalculatorResult: React.FC<CalculatorResultProps> = ({
   employmentType = 'salaried',
   city = '',
   justCalculated = false,
+  onRequestCall,
 }) => {
   const navigate = useNavigate();
 
@@ -48,7 +50,11 @@ export const CalculatorResult: React.FC<CalculatorResultProps> = ({
       // Ignore sessionStorage issues
     }
 
-    navigate('/result', { state: snapshot });
+    if (onRequestCall) {
+      onRequestCall();
+    } else {
+      navigate('/result', { state: snapshot });
+    }
   };
 
   return (
@@ -185,11 +191,11 @@ export const CalculatorResult: React.FC<CalculatorResultProps> = ({
       {/* 4. Lead Capture Callback CTA */}
       <div className="result-callback-card">
         <h4 className="callback-title">
-          Want a free callback to discuss your loan options?
+          Want help choosing the right loan?
         </h4>
         <p className="callback-subtitle">
           {hasValidResult
-            ? 'Speak with a loan specialist to explore options suited to your requirement. Free & no obligation.'
+            ? 'Our advisory team can call you to explain your eligibility and lender options. 100% Free & No Obligation.'
             : 'Enter your loan details above to calculate an estimate and request a free callback.'}
         </p>
         
@@ -200,7 +206,7 @@ export const CalculatorResult: React.FC<CalculatorResultProps> = ({
           disabled={!hasValidResult}
           onClick={handleCallbackClick}
         >
-          {hasValidResult ? 'Request a Free Callback →' : 'Enter Details to Request Callback'}
+          {hasValidResult ? 'Request a Call From Our Team →' : 'Enter Details to Request Callback'}
         </button>
       </div>
     </div>

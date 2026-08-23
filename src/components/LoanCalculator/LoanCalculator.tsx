@@ -9,16 +9,19 @@ import {
   LOAN_CONFIGURATIONS,
   calculateLoan,
   validateCalculatorInput,
+  formatIndianCurrency,
+  formatTenureDisplay,
 } from '../../lib/calculator';
 import { useLoanRates } from '../../hooks';
 import { CalculatorInputs } from './CalculatorInputs';
 import { CalculatorResult } from './CalculatorResult';
+import { RequestCallModal } from '../RequestCallModal/RequestCallModal';
 import './LoanCalculator.css';
 
 export const LoanCalculator: React.FC = () => {
   const { configurations } = useLoanRates();
 
-  // 1. Core Input State - Starts empty to provide a clean, unbiased user experience
+  // 1. Core Input State
   const [loanType, setLoanType] = useState<LoanType>('personal');
   const [principal, setPrincipal] = useState<number>(0);
   const [tenureMonths, setTenureMonths] = useState<number>(0);
@@ -28,11 +31,15 @@ export const LoanCalculator: React.FC = () => {
   const [city, setCity] = useState<string>('');
   const [errors, setErrors] = useState<CalculatorValidationErrors>({});
   
-  // 2. Explicit Calculation Result State - Starts null until user enters valid values
+  // 2. Calculation Result State
   const [calculationResult, setCalculationResult] = useState<LoanCalculationResult | null>(null);
   const [justCalculated, setJustCalculated] = useState<boolean>(false);
 
-  // 3. Helper to Recompute and Set Result
+  // 3. Post-Calculation EMI Popup State
+  const [showEmiPrompt, setShowEmiPrompt] = useState<boolean>(false);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState<boolean>(false);
+
+  // Helper to Recompute and Set Result
   const executeCalculation = (
     currentLoanType: LoanType,
     currentPrincipal: number,
@@ -47,7 +54,7 @@ export const LoanCalculator: React.FC = () => {
     const newResult = calculateLoan({
       loanType: currentLoanType,
       principal: currentPrincipal,
-      annualInterestRate: config.defaultRate,
+      annualInterestRate: config?.defaultRate || 12,
       tenureMonths: currentTenure,
       monthlyIncome: monthlyIncome ? parseInt(monthlyIncome, 10) : undefined,
       existingEmi: existingEmi ? parseInt(existingEmi, 10) : undefined,
@@ -55,6 +62,7 @@ export const LoanCalculator: React.FC = () => {
       city,
     });
     setCalculationResult(newResult);
+    return newResult;
   };
 
   // Handle active configurations change & clamp current values
@@ -166,7 +174,7 @@ export const LoanCalculator: React.FC = () => {
     }
   };
 
-  // 7. Explicit "Calculate Estimated EMI" Button & Form Submission Handler
+  // 7. Explicit "Calculate Estimated EMI" Button Handler
   const handleCalculate = (e?: React.FormEvent) => {
     if (e) {
       e.preventDefault();
@@ -187,8 +195,8 @@ export const LoanCalculator: React.FC = () => {
 
     setErrors({});
 
-    // Explicitly recalculate using the exact current state values
-    executeCalculation(loanType, principal, tenureMonths);
+    // Explicitly recalculate
+    const calculated = executeCalculation(loanType, principal, tenureMonths);
 
     // Provide visual feedback (pulse animation on result card)
     setJustCalculated(true);
@@ -203,61 +211,159 @@ export const LoanCalculator: React.FC = () => {
         resultElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }
+
+    // Check if the post-calculation prompt was previously dismissed in this session
+    try {
+      const isDismissed = sessionStorage.getItem('credzo_emi_prompt_dismissed') === 'true';
+      if (!isDismissed && calculated && calculated.monthlyEmi > 0) {
+        // Show polite popup after 500ms delay so the customer first clearly sees their EMI result
+        setTimeout(() => {
+          setShowEmiPrompt(true);
+        }, 500);
+      }
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  };
+
+  const handleDismissPrompt = () => {
+    setShowEmiPrompt(false);
+    try {
+      sessionStorage.setItem('credzo_emi_prompt_dismissed', 'true');
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  };
+
+  const handleOpenRequestModalFromPrompt = () => {
+    setShowEmiPrompt(false);
+    setIsRequestModalOpen(true);
   };
 
   return (
-    <div className="loan-calculator-layout">
-      {/* Left / Top Column: Inputs Form */}
-      <div className="calculator-form-column">
-        <div className="calculator-card">
-          <div className="calculator-card-header">
-            <h2 className="calculator-card-title">Loan Parameters</h2>
-            <p className="calculator-card-subtitle">
-              Enter your required loan amount and select tenure to view your estimated installment.
-            </p>
-          </div>
+    <div className="loan-calculator-wrapper">
+      <div className="loan-calculator-layout">
+        {/* Left / Top Column: Inputs Form */}
+        <div className="calculator-form-column">
+          <div className="calculator-card">
+            <div className="calculator-card-header">
+              <h2 className="calculator-card-title">Loan Parameters</h2>
+              <p className="calculator-card-subtitle">
+                Enter your required loan amount and select tenure to view your estimated installment.
+              </p>
+            </div>
 
-          <CalculatorInputs
+            <CalculatorInputs
+              loanType={loanType}
+              principal={principal}
+              tenureMonths={tenureMonths}
+              monthlyIncome={monthlyIncome}
+              existingEmi={existingEmi}
+              employmentType={employmentType}
+              city={city}
+              errors={errors}
+              configurations={configurations}
+              onLoanTypeChange={handleLoanTypeChange}
+              onPrincipalChange={handlePrincipalChange}
+              onTenureChange={handleTenureChange}
+              onIncomeChange={(val) => {
+                setMonthlyIncome(val);
+                setErrors((prev) => ({ ...prev, monthlyIncome: undefined }));
+              }}
+              onExistingEmiChange={(val) => {
+                setExistingEmi(val);
+                setErrors((prev) => ({ ...prev, existingEmi: undefined }));
+              }}
+              onEmploymentTypeChange={setEmploymentType}
+              onCityChange={setCity}
+              onCalculate={handleCalculate}
+            />
+          </div>
+        </div>
+
+        {/* Right / Bottom Column: Calculated Results */}
+        <div className="calculator-result-column">
+          <CalculatorResult
+            result={calculationResult}
+            loanTypeLabel={configurations[loanType]?.label || LOAN_CONFIGURATIONS[loanType].label}
             loanType={loanType}
-            principal={principal}
-            tenureMonths={tenureMonths}
             monthlyIncome={monthlyIncome}
             existingEmi={existingEmi}
             employmentType={employmentType}
             city={city}
-            errors={errors}
-            configurations={configurations}
-            onLoanTypeChange={handleLoanTypeChange}
-            onPrincipalChange={handlePrincipalChange}
-            onTenureChange={handleTenureChange}
-            onIncomeChange={(val) => {
-              setMonthlyIncome(val);
-              setErrors((prev) => ({ ...prev, monthlyIncome: undefined }));
-            }}
-            onExistingEmiChange={(val) => {
-              setExistingEmi(val);
-              setErrors((prev) => ({ ...prev, existingEmi: undefined }));
-            }}
-            onEmploymentTypeChange={setEmploymentType}
-            onCityChange={setCity}
-            onCalculate={handleCalculate}
+            justCalculated={justCalculated}
+            onRequestCall={() => setIsRequestModalOpen(true)}
           />
         </div>
       </div>
 
-      {/* Right / Bottom Column: Calculated Results */}
-      <div className="calculator-result-column">
-        <CalculatorResult
-          result={calculationResult}
-          loanTypeLabel={configurations[loanType]?.label || LOAN_CONFIGURATIONS[loanType].label}
-          loanType={loanType}
-          monthlyIncome={monthlyIncome}
-          existingEmi={existingEmi}
-          employmentType={employmentType}
-          city={city}
-          justCalculated={justCalculated}
-        />
-      </div>
+      {/* Post-Calculation Request a Call Popup / Prompt */}
+      {showEmiPrompt && calculationResult && calculationResult.monthlyEmi > 0 && (
+        <div className="emi-prompt-backdrop" onClick={handleDismissPrompt} role="dialog" aria-modal="true">
+          <div className="emi-prompt-card" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="emi-prompt-close-btn"
+              onClick={handleDismissPrompt}
+              aria-label="Close popup"
+            >
+              &times;
+            </button>
+
+            <div className="emi-prompt-header">
+              <span className="emi-prompt-badge">Your Estimated EMI</span>
+              <div className="emi-prompt-amount">
+                {formatIndianCurrency(calculationResult.monthlyEmi)}
+                <span className="emi-prompt-unit">/ month</span>
+              </div>
+              <p className="emi-prompt-summary">
+                {configurations[loanType]?.label || 'Loan'} • {formatIndianCurrency(calculationResult.principal)} • {formatTenureDisplay(calculationResult.tenureMonths)}
+              </p>
+            </div>
+
+            <div className="emi-prompt-body">
+              <h4 className="emi-prompt-headline">Want help choosing the right loan?</h4>
+              <p className="emi-prompt-text">
+                Our team can call you and help you understand your lender options, eligibility, and rates. 100% Free & No Obligation.
+              </p>
+            </div>
+
+            <div className="emi-prompt-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-md btn-full-width"
+                id="emi-prompt-request-btn"
+                onClick={handleOpenRequestModalFromPrompt}
+              >
+                Request a Call →
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm btn-full-width"
+                id="emi-prompt-dismiss-btn"
+                onClick={handleDismissPrompt}
+              >
+                Maybe Later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Request Call Modal */}
+      <RequestCallModal
+        isOpen={isRequestModalOpen}
+        onClose={() => setIsRequestModalOpen(false)}
+        initialService="loan"
+        initialLoanType={loanType}
+        initialRequestedAmount={principal || calculationResult?.principal}
+        initialTenureMonths={tenureMonths || calculationResult?.tenureMonths}
+        initialMonthlyIncome={monthlyIncome}
+        initialExistingEmi={existingEmi}
+        calculatedEmi={calculationResult?.monthlyEmi}
+        title="Request a Call From Our Team"
+        subtitle="Our loan specialist will call you to discuss your options."
+      />
     </div>
   );
 };

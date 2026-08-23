@@ -299,3 +299,192 @@
   border-top: 1px solid var(--border-subtle);
   padding-top: var(--space-4);
 }
+
+/* Nav Request Call Button */
+.nav-request-call-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0369a1;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.nav-request-call-btn:hover {
+  background: #e0f2fe;
+  color: #0284c7;
+  border-color: #7dd3fc;
+}
+
+.nav-call-icon {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.mobile-drawer-call-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  color: #0369a1;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+  transition: all 0.15s ease;
+}
+
+.mobile-drawer-call-btn:hover {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.footer-link-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  transition: color 0.15s ease;
+}
+
+.footer-link-btn:hover {
+  color: var(--color-primary);
+}
+
+/* ==========================================================================
+   Mobile Persistent Bottom "Request a Call" CTA Bar
+   ========================================================================== */
+.mobile-fixed-call-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-fixed-call-bar {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 90;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 -4px 20px -2px rgba(15, 23, 42, 0.08);
+    padding: 0.5rem 1rem max(0.625rem, env(safe-area-inset-bottom, 0.625rem));
+    animation: slideUpBar 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideUpBar {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .mobile-fixed-call-inner {
+    padding: 0;
+    max-width: 100%;
+  }
+
+  .mobile-fixed-call-btn {
+    width: 100%;
+    min-height: 50px;
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55rem 1rem;
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.32);
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  }
+
+  .mobile-fixed-call-btn:active {
+    transform: scale(0.985);
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25);
+  }
+
+  .fixed-call-icon-wrap {
+    width: 34px;
+    height: 34px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .fixed-call-icon {
+    width: 18px;
+    height: 18px;
+    color: #ffffff;
+  }
+
+  .fixed-call-text-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    margin-left: 0.75rem;
+    margin-right: auto;
+  }
+
+  .fixed-call-main-text {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+  }
+
+  .fixed-call-sub-text {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.92);
+    line-height: 1.2;
+    margin-top: 1px;
+  }
+
+  .fixed-call-arrow {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #ffffff;
+    opacity: 0.9;
+    flex-shrink: 0;
+    padding-left: 0.5rem;
+  }
+
+  /* Add bottom clearance on public pages so content is not obscured by fixed bar */
+  .public-layout:not(.is-admin-view) .public-main {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+

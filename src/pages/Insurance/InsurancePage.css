@@ -234,6 +234,53 @@
   }
 }
 
+/* Quick Callback Assist Banner */
+.insurance-quick-callback-banner {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: var(--radius-lg);
+  padding: 0.75rem 1rem;
+  margin-bottom: var(--space-4);
+}
+
+.quick-callback-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.quick-callback-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: #e0f2fe;
+  color: #0284c7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.quick-callback-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.quick-callback-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #0369a1;
+  margin-bottom: 2px;
+}
+
+.quick-callback-subtitle {
+  font-size: 0.75rem;
+  color: #334155;
+  line-height: 1.4;
+  margin: 0;
+}
+
 .form-header-bordered {
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--border-subtle);
