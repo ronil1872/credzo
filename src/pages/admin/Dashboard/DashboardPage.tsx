@@ -1,35 +1,71 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import { formatIndianCurrency } from '../../../lib/calculator';
-import { Lead, LeadStatus } from '../../../types/database';
+import { Lead, InsuranceLead, LeadStatus } from '../../../types/database';
 import { LeadDetailModal } from '../components/LeadDetailModal';
+import { InsuranceLeadDetailModal } from '../components/InsuranceLeadDetailModal';
 import '../crm.css';
 
-interface DashboardStats {
-  total: number;
-  today: number;
-  newPending: number;
-  totalRequestedAmount: number;
-  hot: number;
-  warm: number;
-  callbacksScheduled: number;
-  applications: number;
-  approved: number;
-  disbursed: number;
+interface CRMUnifiedStats {
+  // 1. Unified CRM Totals (Loan + Insurance)
+  totalCRMLeads: number;
+  todayCRMLeads: number;
+  newPendingCRMLeads: number;
+  totalCallbacksScheduled: number;
+
+  // 2. Loan Specific Metrics (Loan Only)
+  totalLoanLeads: number;
+  loanToday: number;
+  loanNew: number;
+  loanHot: number;
+  loanWarm: number;
+  loanCallbacks: number;
+  loanRequestedAmount: number;
+  loanApprovedAmount: number;
+  loanDisbursedAmount: number;
+  loanApplications: number;
+  loanApprovedCount: number;
+  loanDisbursedCount: number;
+
+  // 3. Insurance Specific Metrics (Insurance Only - Exact Statuses)
+  totalInsuranceLeads: number;
+  insuranceToday: number;
+  insuranceNew: number;
+  insuranceContacted: number;
+  insuranceInterested: number;
+  insuranceLost: number;
+  insuranceCallbacks: number;
+  insuranceTypeCounts: Record<string, number>;
 }
 
-const EMPTY_STATS: DashboardStats = {
-  total: 0,
-  today: 0,
-  newPending: 0,
-  totalRequestedAmount: 0,
-  hot: 0,
-  warm: 0,
-  callbacksScheduled: 0,
-  applications: 0,
-  approved: 0,
-  disbursed: 0,
+const EMPTY_STATS: CRMUnifiedStats = {
+  totalCRMLeads: 0,
+  todayCRMLeads: 0,
+  newPendingCRMLeads: 0,
+  totalCallbacksScheduled: 0,
+
+  totalLoanLeads: 0,
+  loanToday: 0,
+  loanNew: 0,
+  loanHot: 0,
+  loanWarm: 0,
+  loanCallbacks: 0,
+  loanRequestedAmount: 0,
+  loanApprovedAmount: 0,
+  loanDisbursedAmount: 0,
+  loanApplications: 0,
+  loanApprovedCount: 0,
+  loanDisbursedCount: 0,
+
+  totalInsuranceLeads: 0,
+  insuranceToday: 0,
+  insuranceNew: 0,
+  insuranceContacted: 0,
+  insuranceInterested: 0,
+  insuranceLost: 0,
+  insuranceCallbacks: 0,
+  insuranceTypeCounts: {},
 };
 
 const LOAN_TYPE_LABELS: Record<string, string> = {
@@ -42,6 +78,36 @@ const LOAN_TYPE_LABELS: Record<string, string> = {
   lap: 'Loan Against Property',
   other: 'Other Loan',
 };
+
+type UnifiedLeadItem =
+  | {
+      id: string;
+      kind: 'LOAN';
+      name: string;
+      mobile: string;
+      city: string | null;
+      productName: string;
+      primaryHighlight: string;
+      status: string;
+      created_at: string;
+      callbackDate: string | null;
+      callbackTime: string | null;
+      rawLoan: Lead;
+    }
+  | {
+      id: string;
+      kind: 'INSURANCE';
+      name: string;
+      mobile: string;
+      city: string | null;
+      productName: string;
+      primaryHighlight: string;
+      status: string;
+      created_at: string;
+      callbackDate: string | null;
+      callbackTime: string | null;
+      rawInsurance: InsuranceLead;
+    };
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -72,20 +138,28 @@ const formatDate = (iso?: string | null) => {
   }
 };
 
+const fmtCurrencyCompact = (num: number) => {
+  if (num >= 1_00_00_000) return `₹${(num / 1_00_00_000).toFixed(2)} Cr`;
+  if (num >= 1_00_000) return `₹${(num / 1_00_000).toFixed(2)} Lakh`;
+  return formatIndianCurrency(num);
+};
+
 export const DashboardPage: React.FC = () => {
-  const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
-  const [allLeads, setAllLeads] = useState<Lead[]>([]);
+  const [stats, setStats] = useState<CRMUnifiedStats>(EMPTY_STATS);
+  const [loanLeads, setLoanLeads] = useState<Lead[]>([]);
+  const [insuranceLeads, setInsuranceLeads] = useState<InsuranceLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Search & Filter state for Recent Leads Table
+  // Search & Filter state for Unified Recent Leads Table
   const [search, setSearch] = useState('');
+  const [kindFilter, setKindFilter] = useState<'ALL' | 'LOAN' | 'INSURANCE'>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const [loanTypeFilter, setLoanTypeFilter] = useState<string>('');
 
-  // Selected lead for Modal detail view
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  // Selected Lead for Modal View
+  const [selectedLoanLeadId, setSelectedLoanLeadId] = useState<string | null>(null);
+  const [selectedInsLeadId, setSelectedInsLeadId] = useState<string | null>(null);
 
   const fetchDashboardData = useCallback(async (isManualRefresh = false) => {
     if (!isSupabaseConfigured()) {
@@ -102,45 +176,97 @@ export const DashboardPage: React.FC = () => {
     setErrorMsg(null);
 
     try {
-      // Query all leads directly from Supabase public.leads, newest first
-      const { data: leads, error } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Parallel execution for maximum performance and minimum latency
+      const [loanRes, insRes] = await Promise.all([
+        supabase.from('leads').select('*').order('created_at', { ascending: false }),
+        supabase.from('insurance_leads').select('*').order('created_at', { ascending: false }),
+      ]);
 
-      if (error) {
-        console.error('[Credzo CRM] Error querying leads:', error);
-        setErrorMsg(`Failed to load leads: ${error.message}`);
+      if (loanRes.error) {
+        console.error('[Credzo CRM] Error querying loan leads:', loanRes.error);
+        setErrorMsg(`Failed to load loan leads: ${loanRes.error.message}`);
         return;
       }
 
-      if (leads) {
-        const leadList = leads as Lead[];
-        setAllLeads(leadList);
-
-        const today = todayStr();
-
-        // Calculate aggregate statistics
-        const calculatedStats: DashboardStats = {
-          total: leadList.length,
-          today: leadList.filter((l) => l.created_at && l.created_at.startsWith(today)).length,
-          newPending: leadList.filter((l) => l.status === 'NEW').length,
-          totalRequestedAmount: leadList.reduce((sum, l) => sum + (Number(l.requested_amount) || 0), 0),
-          hot: leadList.filter((l) => l.lead_score === 'HOT').length,
-          warm: leadList.filter((l) => l.lead_score === 'WARM').length,
-          callbacksScheduled: leadList.filter(
-            (l) => l.preferred_callback_date && l.preferred_callback_date >= today
-          ).length,
-          applications: leadList.filter((l) => l.status === 'APPLICATION').length,
-          approved: leadList.filter((l) => l.status === 'APPROVED').length,
-          disbursed: leadList.filter((l) => l.status === 'DISBURSED').length,
-        };
-
-        setStats(calculatedStats);
+      if (insRes.error) {
+        console.error('[Credzo CRM] Error querying insurance leads:', insRes.error);
+        setErrorMsg(`Failed to load insurance leads: ${insRes.error.message}`);
+        return;
       }
+
+      const loans = (loanRes.data as Lead[]) || [];
+      const insurances = (insRes.data as InsuranceLead[]) || [];
+
+      setLoanLeads(loans);
+      setInsuranceLeads(insurances);
+
+      const today = todayStr();
+
+      // 1. Calculate Loan Metrics
+      const loanToday = loans.filter((l) => l.created_at && l.created_at.startsWith(today)).length;
+      const loanNew = loans.filter((l) => l.status === 'NEW').length;
+      const loanHot = loans.filter((l) => l.lead_score === 'HOT').length;
+      const loanWarm = loans.filter((l) => l.lead_score === 'WARM').length;
+      const loanCallbacks = loans.filter(
+        (l) => l.preferred_callback_date && l.preferred_callback_date >= today
+      ).length;
+      const loanRequestedAmount = loans.reduce((sum, l) => sum + (Number(l.requested_amount) || 0), 0);
+      const loanApprovedAmount = loans.reduce((sum, l) => sum + (Number(l.approved_amount) || 0), 0);
+      const loanDisbursedAmount = loans.reduce((sum, l) => sum + (Number(l.disbursed_amount) || 0), 0);
+      const loanApplications = loans.filter((l) => l.status === 'APPLICATION').length;
+      const loanApprovedCount = loans.filter((l) => l.status === 'APPROVED').length;
+      const loanDisbursedCount = loans.filter((l) => l.status === 'DISBURSED').length;
+
+      // 2. Calculate Insurance Metrics
+      const insuranceToday = insurances.filter((i) => i.created_at && i.created_at.startsWith(today)).length;
+      const insuranceNew = insurances.filter((i) => i.status === 'NEW').length;
+      const insuranceContacted = insurances.filter((i) => i.status === 'CONTACTED').length;
+      const insuranceInterested = insurances.filter((i) => i.status === 'INTERESTED').length;
+      const insuranceLost = insurances.filter((i) => i.status === 'LOST').length;
+      const insuranceCallbacks = insurances.filter(
+        (i) => i.preferred_callback_date && i.preferred_callback_date >= today
+      ).length;
+
+      const insuranceTypeCounts: Record<string, number> = {};
+      insurances.forEach((i) => {
+        const t = i.insurance_type || 'Other Insurance';
+        insuranceTypeCounts[t] = (insuranceTypeCounts[t] || 0) + 1;
+      });
+
+      // 3. Unified Aggregate Statistics
+      const calculatedStats: CRMUnifiedStats = {
+        totalCRMLeads: loans.length + insurances.length,
+        todayCRMLeads: loanToday + insuranceToday,
+        newPendingCRMLeads: loanNew + insuranceNew,
+        totalCallbacksScheduled: loanCallbacks + insuranceCallbacks,
+
+        totalLoanLeads: loans.length,
+        loanToday,
+        loanNew,
+        loanHot,
+        loanWarm,
+        loanCallbacks,
+        loanRequestedAmount,
+        loanApprovedAmount,
+        loanDisbursedAmount,
+        loanApplications,
+        loanApprovedCount,
+        loanDisbursedCount,
+
+        totalInsuranceLeads: insurances.length,
+        insuranceToday,
+        insuranceNew,
+        insuranceContacted,
+        insuranceInterested,
+        insuranceLost,
+        insuranceCallbacks,
+        insuranceTypeCounts,
+      };
+
+      setStats(calculatedStats);
     } catch (err: unknown) {
       console.error('[Credzo CRM] Unexpected dashboard fetch error:', err);
-      setErrorMsg('Unexpected network error occurred while loading lead data.');
+      setErrorMsg('Unexpected network error occurred while loading dashboard data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -151,46 +277,98 @@ export const DashboardPage: React.FC = () => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Handle lead updates from Modal
-  const handleLeadUpdated = (updated: Lead) => {
-    setAllLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+  // Handle Updates & Deletions
+  const handleLoanUpdated = (updated: Lead) => {
+    setLoanLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
   };
 
-  // Handle lead deletion from Modal
-  const handleLeadDeleted = (deletedId: string) => {
-    setAllLeads((prev) => prev.filter((l) => l.id !== deletedId));
+  const handleLoanDeleted = (deletedId: string) => {
+    setLoanLeads((prev) => prev.filter((l) => l.id !== deletedId));
     fetchDashboardData();
   };
 
-  // Filter recent leads table
-  const filteredRecentLeads = allLeads.filter((lead) => {
-    if (statusFilter && lead.status !== statusFilter) return false;
-    if (loanTypeFilter && lead.loan_type !== loanTypeFilter) return false;
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      const matchName = lead.name?.toLowerCase().includes(q);
-      const matchMobile = lead.mobile?.includes(q);
-      const matchCity = lead.city?.toLowerCase().includes(q);
-      const matchType = lead.loan_type?.toLowerCase().includes(q);
-      if (!matchName && !matchMobile && !matchCity && !matchType) return false;
-    }
-    return true;
-  });
-
-  const fmtCurrencyCompact = (num: number) => {
-    if (num >= 1_00_00_000) return `₹${(num / 1_00_00_000).toFixed(2)} Cr`;
-    if (num >= 1_00_000) return `₹${(num / 1_00_000).toFixed(2)} Lakh`;
-    return formatIndianCurrency(num);
+  const handleInsuranceUpdated = (updated: InsuranceLead) => {
+    setInsuranceLeads((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
   };
+
+  const handleInsuranceDeleted = (deletedId: string) => {
+    setInsuranceLeads((prev) => prev.filter((i) => i.id !== deletedId));
+    fetchDashboardData();
+  };
+
+  // Build Unified Recent Leads List (Sorted Newest First)
+  const unifiedRecentLeads = useMemo<UnifiedLeadItem[]>(() => {
+    const loanItems: UnifiedLeadItem[] = loanLeads.map((l) => ({
+      id: l.id,
+      kind: 'LOAN',
+      name: l.name,
+      mobile: l.mobile,
+      city: l.city,
+      productName: LOAN_TYPE_LABELS[l.loan_type] || l.loan_type,
+      primaryHighlight: formatIndianCurrency(l.requested_amount),
+      status: l.status,
+      created_at: l.created_at,
+      callbackDate: l.preferred_callback_date,
+      callbackTime: l.preferred_callback_time,
+      rawLoan: l,
+    }));
+
+    const insItems: UnifiedLeadItem[] = insuranceLeads.map((i) => ({
+      id: i.id,
+      kind: 'INSURANCE',
+      name: i.full_name,
+      mobile: i.mobile,
+      city: i.city,
+      productName: i.insurance_type || 'Insurance',
+      primaryHighlight: i.insurance_type || 'Enquiry',
+      status: i.status,
+      created_at: i.created_at,
+      callbackDate: i.preferred_callback_date,
+      callbackTime: i.preferred_callback_time,
+      rawInsurance: i,
+    }));
+
+    const merged = [...loanItems, ...insItems];
+    merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return merged;
+  }, [loanLeads, insuranceLeads]);
+
+  // Filter Recent Leads List
+  const filteredRecentLeads = useMemo(() => {
+    return unifiedRecentLeads.filter((item) => {
+      if (kindFilter !== 'ALL' && item.kind !== kindFilter) return false;
+      if (statusFilter && item.status !== statusFilter) return false;
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        const matchName = item.name?.toLowerCase().includes(q);
+        const matchMobile = item.mobile?.includes(q);
+        const matchCity = item.city?.toLowerCase().includes(q);
+        const matchProduct = item.productName?.toLowerCase().includes(q);
+        if (!matchName && !matchMobile && !matchCity && !matchProduct) return false;
+      }
+      return true;
+    });
+  }, [unifiedRecentLeads, kindFilter, statusFilter, search]);
+
+  // Calculate CRM Composition Percentages
+  const loanSharePct =
+    stats.totalCRMLeads > 0
+      ? ((stats.totalLoanLeads / stats.totalCRMLeads) * 100).toFixed(1)
+      : '0.0';
+  const insSharePct =
+    stats.totalCRMLeads > 0
+      ? ((stats.totalInsuranceLeads / stats.totalCRMLeads) * 100).toFixed(1)
+      : '0.0';
 
   return (
     <div>
-      {/* Top Header */}
+      {/* 1. Page Header with Quick Navigation */}
       <div className="crm-page-header">
         <div>
-          <h1 className="crm-page-title">Executive Lead Dashboard</h1>
+          <h1 className="crm-page-title">Credzo CRM Executive Dashboard</h1>
           <p className="crm-page-subtitle">
-            Real-time loan enquiries & pipeline summary — {new Date().toLocaleDateString('en-IN', {
+            Unified pipeline analytics for Loan & Insurance operations —{' '}
+            {new Date().toLocaleDateString('en-IN', {
               weekday: 'long',
               year: 'numeric',
               month: 'long',
@@ -199,7 +377,7 @@ export const DashboardPage: React.FC = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
           <button
             type="button"
             className={`crm-refresh-btn ${refreshing ? 'spinning' : ''}`}
@@ -220,8 +398,11 @@ export const DashboardPage: React.FC = () => {
             <span>{refreshing ? 'Updating...' : 'Refresh'}</span>
           </button>
 
-          <Link to="/admin/leads" className="btn btn-primary btn-sm">
-            Manage All Leads →
+          <Link to="/admin/leads" className="btn btn-outline btn-sm">
+            Loan Leads ({stats.totalLoanLeads}) →
+          </Link>
+          <Link to="/admin/insurance" className="btn btn-outline btn-sm">
+            Insurance Leads ({stats.totalInsuranceLeads}) →
           </Link>
         </div>
       </div>
@@ -238,89 +419,257 @@ export const DashboardPage: React.FC = () => {
         </div>
       )}
 
-      {/* Primary KPI Metrics Grid */}
+      {/* 2. Unified Primary KPI Metrics (Loan + Insurance) */}
       <div className="crm-stats-grid">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="stat-card skeleton-row" style={{ height: 100 }} />
+            <div key={i} className="stat-card skeleton-row" style={{ height: 110 }} />
           ))
         ) : (
           <>
-            {/* 1. Total Leads */}
+            {/* Total CRM Leads */}
             <div className="stat-card stat-primary">
-              <span className="stat-label">Total Leads</span>
-              <span className="stat-value primary">{stats.total}</span>
-              <span className="stat-sub">Lifetime registered customer enquiries</span>
-            </div>
-
-            {/* 2. Leads Today */}
-            <div className="stat-card">
-              <span className="stat-label">Leads Today</span>
-              <span className="stat-value" style={{ color: '#047857' }}>
-                {stats.today}
+              <span className="stat-label">Total CRM Inquiries</span>
+              <span className="stat-value primary">{stats.totalCRMLeads}</span>
+              <span className="stat-sub">
+                {stats.totalLoanLeads} Loans • {stats.totalInsuranceLeads} Insurance
               </span>
-              <span className="stat-sub">New submissions in the last 24 hours</span>
             </div>
 
-            {/* 3. New/Pending Leads */}
+            {/* Leads Today */}
+            <div className="stat-card">
+              <span className="stat-label">Inquiries Today</span>
+              <span className="stat-value" style={{ color: '#047857' }}>
+                {stats.todayCRMLeads}
+              </span>
+              <span className="stat-sub">
+                {stats.loanToday} Loans • {stats.insuranceToday} Insurance
+              </span>
+            </div>
+
+            {/* New / Pending Inquiries */}
             <div className="stat-card stat-warm">
               <span className="stat-label">New / Pending</span>
-              <span className="stat-value warm">{stats.newPending}</span>
-              <span className="stat-sub">Awaiting initial advisor callback</span>
+              <span className="stat-value warm">{stats.newPendingCRMLeads}</span>
+              <span className="stat-sub">
+                {stats.loanNew} Loans • {stats.insuranceNew} Insurance
+              </span>
             </div>
 
-            {/* 4. Total Requested Loan Amount */}
-            <div className="stat-card stat-primary">
-              <span className="stat-label">Total Requested Value</span>
-              <span className="stat-value primary">{fmtCurrencyCompact(stats.totalRequestedAmount)}</span>
-              <span className="stat-sub">Combined financing demand in pipeline</span>
+            {/* Total Scheduled Callbacks */}
+            <div className="stat-card">
+              <span className="stat-label">Callbacks Scheduled</span>
+              <span className="stat-value" style={{ color: '#2563eb' }}>
+                {stats.totalCallbacksScheduled}
+              </span>
+              <span className="stat-sub">
+                {stats.loanCallbacks} Loans • {stats.insuranceCallbacks} Insurance
+              </span>
             </div>
           </>
         )}
       </div>
 
-      {/* Secondary Highlights Row */}
+      {/* 3. CRM Lead Composition Breakdown Bar */}
       {!loading && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: 'var(--space-3)',
-            marginBottom: 'var(--space-6)',
-          }}
-        >
-          <div className="stat-card" style={{ padding: 'var(--space-3) var(--space-4)' }}>
-            <span className="stat-label">🔥 Hot Enquiries</span>
-            <span className="stat-value hot" style={{ fontSize: 'var(--font-size-xl)' }}>
-              {stats.hot}
+        <div className="crm-composition-card">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+            <div>
+              <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 800, color: 'var(--text-primary)' }}>
+                CRM Portfolio Composition
+              </span>
+              <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+                Relative distribution of customer enquiries across business verticals
+              </p>
+            </div>
+            <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--text-secondary)' }}>
+              {stats.totalCRMLeads} Total Customer Inquiries
             </span>
           </div>
-          <div className="stat-card" style={{ padding: 'var(--space-3) var(--space-4)' }}>
-            <span className="stat-label">📅 Callbacks Scheduled</span>
-            <span className="stat-value" style={{ fontSize: 'var(--font-size-xl)' }}>
-              {stats.callbacksScheduled}
-            </span>
+
+          <div className="crm-composition-bar" role="progressbar" aria-label="CRM composition">
+            <div
+              className="crm-composition-fill loan"
+              style={{ width: `${loanSharePct}%` }}
+              title={`Loan Leads: ${stats.totalLoanLeads} (${loanSharePct}%)`}
+            />
+            <div
+              className="crm-composition-fill insurance"
+              style={{ width: `${insSharePct}%` }}
+              title={`Insurance Leads: ${stats.totalInsuranceLeads} (${insSharePct}%)`}
+            />
           </div>
-          <div className="stat-card" style={{ padding: 'var(--space-3) var(--space-4)' }}>
-            <span className="stat-label">📄 In Application</span>
-            <span className="stat-value" style={{ fontSize: 'var(--font-size-xl)' }}>
-              {stats.applications}
-            </span>
-          </div>
-          <div className="stat-card" style={{ padding: 'var(--space-3) var(--space-4)' }}>
-            <span className="stat-label">✅ Disbursed Loans</span>
-            <span className="stat-value" style={{ fontSize: 'var(--font-size-xl)', color: '#047857' }}>
-              {stats.disbursed}
-            </span>
+
+          <div className="crm-composition-legend">
+            <div className="crm-legend-item">
+              <span className="crm-legend-dot loan" />
+              <span>
+                <strong>Loan Inquiries:</strong> {stats.totalLoanLeads} ({loanSharePct}%)
+              </span>
+            </div>
+            <div className="crm-legend-item">
+              <span className="crm-legend-dot insurance" />
+              <span>
+                <strong>Insurance Inquiries:</strong> {stats.totalInsuranceLeads} ({insSharePct}%)
+              </span>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Recent Leads Table Card */}
+      {/* 4. Dual Section Overview: Loan Overview vs Insurance Overview */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+        {/* Left Column: Loan Portfolio Overview (LOAN-ONLY METRICS) */}
+        <div className="crm-card" style={{ height: '100%' }}>
+          <div className="crm-card-header" style={{ background: '#f8fafc', borderBottom: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <span className="crm-type-badge loan">Loan Desk</span>
+              <span className="crm-card-title">Financing & Lending Pipeline</span>
+            </div>
+            <Link to="/admin/leads" className="btn btn-outline btn-xs">
+              View All Loans →
+            </Link>
+          </div>
+
+          <div style={{ padding: 'var(--space-4) var(--space-5)' }}>
+            {/* Requested Loan Value Banner */}
+            <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 'var(--radius-lg)', padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-4)' }}>
+              <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Total Requested Loan Volume
+              </span>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#1d4ed8', marginTop: 2 }}>
+                {fmtCurrencyCompact(stats.loanRequestedAmount)}
+              </div>
+              <span style={{ fontSize: '0.6875rem', color: '#3b82f6' }}>
+                Aggregated borrowing demand across {stats.totalLoanLeads} loan applications
+              </span>
+            </div>
+
+            {/* Loan Mini Stats Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-3)' }}>
+              <div style={{ background: 'var(--bg-app)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)' }}>
+                <span className="info-label">🔥 Hot Enquiries</span>
+                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#dc2626' }}>
+                  {stats.loanHot}
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--bg-app)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)' }}>
+                <span className="info-label">📄 In Application</span>
+                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#2563eb' }}>
+                  {stats.loanApplications}
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--bg-app)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)' }}>
+                <span className="info-label">👍 Approved Loans</span>
+                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#059669' }}>
+                  {stats.loanApprovedCount}
+                </div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                  {fmtCurrencyCompact(stats.loanApprovedAmount)}
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--bg-app)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)' }}>
+                <span className="info-label">✅ Disbursed Loans</span>
+                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#047857' }}>
+                  {stats.loanDisbursedCount}
+                </div>
+                <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                  {fmtCurrencyCompact(stats.loanDisbursedAmount)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Insurance Overview (INSURANCE-ONLY METRICS) */}
+        <div className="crm-card" style={{ height: '100%' }}>
+          <div className="crm-card-header" style={{ background: '#f8fafc', borderBottom: '1px solid var(--border-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <span className="crm-type-badge insurance">Insurance Desk</span>
+              <span className="crm-card-title">Policy & Advisory Pipeline</span>
+            </div>
+            <Link to="/admin/insurance" className="btn btn-outline btn-xs">
+              View All Insurance →
+            </Link>
+          </div>
+
+          <div style={{ padding: 'var(--space-4) var(--space-5)' }}>
+            {/* Total Insurance Inquiries Banner */}
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-lg)', padding: 'var(--space-3) var(--space-4)', marginBottom: 'var(--space-4)' }}>
+              <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 700, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Active Insurance Enquiries
+              </span>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#15803d', marginTop: 2 }}>
+                {stats.totalInsuranceLeads} Inquiries
+              </div>
+              <span style={{ fontSize: '0.6875rem', color: '#16a34a' }}>
+                {stats.insuranceNew} Untouched • {stats.insuranceInterested} High-Intent • {stats.insuranceCallbacks} Scheduled
+              </span>
+            </div>
+
+            {/* Insurance Mini Stats Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+              <div style={{ background: 'var(--bg-app)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)' }}>
+                <span className="info-label">🆕 New Untouched</span>
+                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#2563eb' }}>
+                  {stats.insuranceNew}
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--bg-app)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)' }}>
+                <span className="info-label">💬 In Conversation</span>
+                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#7c3aed' }}>
+                  {stats.insuranceContacted}
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--bg-app)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)' }}>
+                <span className="info-label">🎯 Ready for Proposal</span>
+                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: '#059669' }}>
+                  {stats.insuranceInterested}
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--bg-app)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', padding: 'var(--space-3)' }}>
+                <span className="info-label">📁 Closed / Lost</span>
+                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800, color: 'var(--text-muted)' }}>
+                  {stats.insuranceLost}
+                </div>
+              </div>
+            </div>
+
+            {/* Insurance Policy Categories Breakdown */}
+            {Object.keys(stats.insuranceTypeCounts).length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: 'var(--space-2)' }}>
+                {Object.entries(stats.insuranceTypeCounts).map(([type, count]) => (
+                  <span
+                    key={type}
+                    style={{
+                      fontSize: '0.6875rem',
+                      background: 'var(--bg-app)',
+                      border: '1px solid var(--border-subtle)',
+                      padding: '2px 8px',
+                      borderRadius: 'var(--radius-full)',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    <strong>{type}:</strong> {count}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 5. Unified Recent Leads Table (Loan + Insurance Combined) */}
       <div className="crm-card">
         <div className="crm-card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-            <span className="crm-card-title">Recent Customer Leads</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+            <span className="crm-card-title">Recent CRM Activity (Loan + Insurance)</span>
             <span
               style={{
                 fontSize: 'var(--font-size-xs)',
@@ -331,33 +680,55 @@ export const DashboardPage: React.FC = () => {
                 borderRadius: 'var(--radius-full)',
               }}
             >
-              {filteredRecentLeads.length} records
+              {filteredRecentLeads.length} matching records
             </span>
           </div>
 
-          <Link
-            to="/admin/leads"
-            style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-primary)' }}
-          >
-            View Full Table with Pagination →
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <Link
+              to="/admin/leads"
+              style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-primary)' }}
+            >
+              Loans Table →
+            </Link>
+            <Link
+              to="/admin/insurance"
+              style={{ fontSize: 'var(--font-size-xs)', fontWeight: 600, color: '#15803d' }}
+            >
+              Insurance Table →
+            </Link>
+          </div>
         </div>
 
-        {/* Filter / Search Toolbar */}
+        {/* Unified Filter / Search Toolbar */}
         <div className="crm-filters-bar">
           <input
             type="search"
             className="crm-search-input"
-            placeholder="Search by name, mobile, or city..."
+            placeholder="Search by applicant name, mobile number, city, or product..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+
+          {/* Type Filter */}
+          <select
+            className="crm-select"
+            value={kindFilter}
+            onChange={(e) => setKindFilter(e.target.value as 'ALL' | 'LOAN' | 'INSURANCE')}
+            style={{ fontWeight: 600 }}
+          >
+            <option value="ALL">All CRM Verticals</option>
+            <option value="LOAN">Loans Only</option>
+            <option value="INSURANCE">Insurance Only</option>
+          </select>
+
+          {/* Status Filter */}
           <select
             className="crm-select"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
-            <option value="">All Statuses</option>
+            <option value="">All Pipeline Statuses</option>
             {(
               [
                 'NEW',
@@ -375,18 +746,6 @@ export const DashboardPage: React.FC = () => {
               </option>
             ))}
           </select>
-          <select
-            className="crm-select"
-            value={loanTypeFilter}
-            onChange={(e) => setLoanTypeFilter(e.target.value)}
-          >
-            <option value="">All Loan Types</option>
-            {Object.entries(LOAN_TYPE_LABELS).map(([v, label]) => (
-              <option key={v} value={v}>
-                {label}
-              </option>
-            ))}
-          </select>
         </div>
 
         {/* Desktop & Tablet Table View */}
@@ -394,24 +753,23 @@ export const DashboardPage: React.FC = () => {
           <table className="leads-table">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Name</th>
+                <th>Vertical</th>
+                <th>Received</th>
+                <th>Applicant</th>
                 <th>Mobile</th>
                 <th>City</th>
-                <th>Loan Type</th>
-                <th>Requested Amount</th>
-                <th>Employment</th>
-                <th>Callback Date</th>
-                <th>Callback Slot</th>
+                <th>Product / Category</th>
+                <th>Requirement / Highlight</th>
+                <th>Callback Schedule</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                Array.from({ length: 5 }).map((_, i) => (
+                Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 11 }).map((_, j) => (
+                    {Array.from({ length: 10 }).map((_, j) => (
                       <td key={j}>
                         <div className="skeleton-bar" style={{ width: '85%', height: 14 }} />
                       </td>
@@ -420,7 +778,7 @@ export const DashboardPage: React.FC = () => {
                 ))
               ) : filteredRecentLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={11}>
+                  <td colSpan={10}>
                     <div className="empty-state">
                       <svg
                         className="empty-state-icon"
@@ -434,81 +792,95 @@ export const DashboardPage: React.FC = () => {
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
                         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                       </svg>
-                      <p className="empty-state-title">No leads matching criteria</p>
+                      <p className="empty-state-title">No enquiries matching filters</p>
                       <p className="empty-state-desc">
-                        {search || statusFilter || loanTypeFilter
-                          ? 'Try clearing the search or filters.'
-                          : 'New lead submissions from the public loan calculator will appear here immediately.'}
+                        {search || statusFilter || kindFilter !== 'ALL'
+                          ? 'Try modifying your search query or clearing the status filter.'
+                          : 'Customer submissions across Loan and Insurance portals will appear here automatically.'}
                       </p>
                     </div>
                   </td>
                 </tr>
               ) : (
-                filteredRecentLeads.slice(0, 15).map((lead) => (
-                  <tr key={lead.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedLeadId(lead.id)}>
-                    {/* 1. Date */}
-                    <td className="lead-date-cell">{formatDateTime(lead.created_at)}</td>
-
-                    {/* 2. Name */}
+                filteredRecentLeads.slice(0, 20).map((item) => (
+                  <tr
+                    key={`${item.kind}-${item.id}`}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      if (item.kind === 'LOAN') setSelectedLoanLeadId(item.id);
+                      else setSelectedInsLeadId(item.id);
+                    }}
+                  >
+                    {/* Vertical Badge */}
                     <td>
-                      <div className="lead-name-cell">{lead.name}</div>
-                      <span className="lead-ref-pill">#{lead.id.slice(0, 8).toUpperCase()}</span>
-                    </td>
-
-                    {/* 3. Mobile */}
-                    <td className="lead-mobile-cell" onClick={(e) => e.stopPropagation()}>
-                      <a href={`tel:+91${lead.mobile}`} style={{ color: 'inherit', textDecoration: 'none' }}>
-                        +91 {lead.mobile}
-                      </a>
-                    </td>
-
-                    {/* 4. City */}
-                    <td>{lead.city || '—'}</td>
-
-                    {/* 5. Loan Type */}
-                    <td>
-                      <span style={{ fontWeight: 600 }}>
-                        {LOAN_TYPE_LABELS[lead.loan_type] || lead.loan_type}
+                      <span className={`crm-type-badge ${item.kind.toLowerCase()}`}>
+                        {item.kind}
                       </span>
                     </td>
 
-                    {/* 6. Requested Amount */}
-                    <td className="lead-amount-cell">
-                      {formatIndianCurrency(lead.requested_amount)}
-                    </td>
+                    {/* Received Date */}
+                    <td className="lead-date-cell">{formatDateTime(item.created_at)}</td>
 
-                    {/* 7. Employment Type */}
+                    {/* Applicant */}
                     <td>
-                      {lead.employment_type
-                        ? lead.employment_type.charAt(0).toUpperCase() +
-                          lead.employment_type.slice(1).replace('_', ' ')
-                        : '—'}
+                      <div className="lead-name-cell">{item.name}</div>
+                      <span className="lead-ref-pill">#{item.id.slice(0, 8).toUpperCase()}</span>
                     </td>
 
-                    {/* 8. Preferred Callback Date */}
-                    <td>{formatDate(lead.preferred_callback_date)}</td>
+                    {/* Mobile */}
+                    <td className="lead-mobile-cell" onClick={(e) => e.stopPropagation()}>
+                      <a href={`tel:+91${item.mobile}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                        +91 {item.mobile}
+                      </a>
+                    </td>
 
-                    {/* 9. Preferred Callback Time */}
+                    {/* City */}
+                    <td>{item.city || '—'}</td>
+
+                    {/* Product */}
                     <td>
-                      {lead.preferred_callback_time
-                        ? lead.preferred_callback_time.charAt(0).toUpperCase() +
-                          lead.preferred_callback_time.slice(1)
-                        : 'Morning'}
+                      <span style={{ fontWeight: 600 }}>{item.productName}</span>
                     </td>
 
-                    {/* 10. Status */}
+                    {/* Highlight */}
                     <td>
-                      <span className={`status-badge ${lead.status}`}>{lead.status}</span>
+                      {item.kind === 'LOAN' ? (
+                        <span className="lead-amount-cell" style={{ fontSize: 'var(--font-size-sm)' }}>
+                          {item.primaryHighlight}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#15803d', fontWeight: 600, fontSize: 'var(--font-size-xs)' }}>
+                          {item.primaryHighlight}
+                        </span>
+                      )}
                     </td>
 
-                    {/* 11. Actions */}
+                    {/* Callback Schedule */}
+                    <td>
+                      <div style={{ fontSize: 'var(--font-size-xs)' }}>
+                        {formatDate(item.callbackDate)}
+                      </div>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
+                        {item.callbackTime || '—'}
+                      </div>
+                    </td>
+
+                    {/* Status */}
+                    <td>
+                      <span className={`status-badge ${item.status}`}>{item.status}</span>
+                    </td>
+
+                    {/* Actions */}
                     <td onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
                         className="view-lead-btn"
-                        onClick={() => setSelectedLeadId(lead.id)}
+                        onClick={() => {
+                          if (item.kind === 'LOAN') setSelectedLoanLeadId(item.id);
+                          else setSelectedInsLeadId(item.id);
+                        }}
                       >
-                        View Details →
+                        Inspect →
                       </button>
                     </td>
                   </tr>
@@ -529,48 +901,63 @@ export const DashboardPage: React.FC = () => {
             ))
           ) : filteredRecentLeads.length === 0 ? (
             <div className="empty-state">
-              <p className="empty-state-title">No leads found</p>
+              <p className="empty-state-title">No enquiries found</p>
             </div>
           ) : (
-            filteredRecentLeads.slice(0, 15).map((lead) => (
-              <div key={lead.id} className="lead-mobile-card" onClick={() => setSelectedLeadId(lead.id)}>
+            filteredRecentLeads.slice(0, 20).map((item) => (
+              <div
+                key={`${item.kind}-${item.id}`}
+                className="lead-mobile-card"
+                onClick={() => {
+                  if (item.kind === 'LOAN') setSelectedLoanLeadId(item.id);
+                  else setSelectedInsLeadId(item.id);
+                }}
+              >
                 <div className="lead-mobile-header">
                   <div>
-                    <div className="lead-mobile-applicant">{lead.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 2 }}>
+                      <span className={`crm-type-badge ${item.kind.toLowerCase()}`}>
+                        {item.kind}
+                      </span>
+                      <span className="lead-mobile-applicant">{item.name}</span>
+                    </div>
                     <div className="lead-mobile-city">
-                      {lead.city ? `${lead.city} • ` : ''}+91 {lead.mobile}
+                      {item.city ? `${item.city} • ` : ''}+91 {item.mobile}
                     </div>
                   </div>
-                  <span className={`status-badge ${lead.status}`}>{lead.status}</span>
+                  <span className={`status-badge ${item.status}`}>{item.status}</span>
                 </div>
 
                 <div className="lead-mobile-details">
                   <div>
-                    <span className="info-label">Requirement</span>
-                    <div style={{ fontWeight: 700, color: 'var(--color-primary)' }}>
-                      {formatIndianCurrency(lead.requested_amount)}
+                    <span className="info-label">{item.kind === 'LOAN' ? 'Requested Loan' : 'Insurance Plan'}</span>
+                    <div style={{ fontWeight: 700, color: item.kind === 'LOAN' ? 'var(--color-primary)' : '#15803d' }}>
+                      {item.primaryHighlight}
                     </div>
                     <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                      {LOAN_TYPE_LABELS[lead.loan_type] || lead.loan_type}
+                      {item.productName}
                     </div>
                   </div>
                   <div>
                     <span className="info-label">Callback</span>
-                    <div style={{ fontWeight: 600 }}>{formatDate(lead.preferred_callback_date)}</div>
+                    <div style={{ fontWeight: 600 }}>{formatDate(item.callbackDate)}</div>
                     <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                      {lead.preferred_callback_time || 'Morning'}
+                      {item.callbackTime || 'Morning'}
                     </div>
                   </div>
                 </div>
 
                 <div className="lead-mobile-actions" onClick={(e) => e.stopPropagation()}>
                   <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)' }}>
-                    {formatDateTime(lead.created_at)}
+                    {formatDateTime(item.created_at)}
                   </span>
                   <button
                     type="button"
                     className="btn btn-primary btn-xs"
-                    onClick={() => setSelectedLeadId(lead.id)}
+                    onClick={() => {
+                      if (item.kind === 'LOAN') setSelectedLoanLeadId(item.id);
+                      else setSelectedInsLeadId(item.id);
+                    }}
                   >
                     View Details →
                   </button>
@@ -581,12 +968,21 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Lead Detail Quick Modal */}
+      {/* 6. Lead Detail Quick Modals */}
+      {/* Loan Lead Modal */}
       <LeadDetailModal
-        leadId={selectedLeadId}
-        onClose={() => setSelectedLeadId(null)}
-        onLeadUpdated={handleLeadUpdated}
-        onLeadDeleted={handleLeadDeleted}
+        leadId={selectedLoanLeadId}
+        onClose={() => setSelectedLoanLeadId(null)}
+        onLeadUpdated={handleLoanUpdated}
+        onLeadDeleted={handleLoanDeleted}
+      />
+
+      {/* Insurance Lead Modal */}
+      <InsuranceLeadDetailModal
+        leadId={selectedInsLeadId}
+        onClose={() => setSelectedInsLeadId(null)}
+        onLeadUpdated={handleInsuranceUpdated}
+        onLeadDeleted={handleInsuranceDeleted}
       />
     </div>
   );
