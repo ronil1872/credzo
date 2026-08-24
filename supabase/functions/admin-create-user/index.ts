@@ -1,13 +1,11 @@
 // ==============================================================================
 // Credzo Finance — Secure Team Member Provisioning Edge Function
 // Endpoint: /functions/v1/admin-create-user
-// BUILD_VERSION: v20260824-diagnostic-001
+// BUILD_VERSION: v20260824-diagnostic-002
 // ==============================================================================
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
-
-const BUILD_VERSION = 'v20260824-diagnostic-001';
 
 const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -29,12 +27,12 @@ serve(async (req: Request) => {
   }
 
   try {
-    console.log('[Credzo AdminCreateUser] Starting request processing...');
+    console.log('[admin-create-user] Incoming POST request received');
 
     // 1. Verify Authorization Header
     const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.warn('[Credzo AdminCreateUser] Missing or invalid Authorization header');
+      console.error('[admin-create-user] operation "validate_auth_header" failed: missing or malformed Bearer header');
       return new Response(
         JSON.stringify({ error: 'Missing or invalid Authorization header.' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -50,9 +48,12 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SECRET_KEY');
 
     if (!supabaseUrl || !supabaseServiceRoleKey) {
-      console.error('[Credzo AdminCreateUser] Edge Function missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY.');
+      console.error('[admin-create-user] operation "validate_env" failed:', {
+        hasUrl: Boolean(supabaseUrl),
+        hasServiceRoleKey: Boolean(supabaseServiceRoleKey),
+      });
       return new Response(
-        JSON.stringify({ error: 'Server configuration error: missing backend credentials.' }),
+        JSON.stringify({ error: 'Internal Server Error' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -67,14 +68,18 @@ serve(async (req: Request) => {
     const callerError = userRes?.error;
 
     if (callerError || !callerUser) {
-      console.warn('[Credzo AdminCreateUser] Failed to authenticate caller JWT:', callerError?.message);
+      console.error('[admin-create-user] operation "authenticate_caller" failed:', {
+        name: callerError?.name,
+        message: callerError?.message,
+        status: callerError?.status,
+      });
       return new Response(
-        JSON.stringify({ error: `Authentication session expired or invalid: ${callerError?.message || 'Unauthorized'}` }),
+        JSON.stringify({ error: 'Authentication session expired or invalid.' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[Credzo AdminCreateUser] Caller authenticated: ${callerUser.id}`);
+    console.log(`[admin-create-user] Caller authenticated: caller_id=${callerUser.id}`);
 
     // 4. Verify Caller Profile, Role & Organization Boundary
     const profileRes = await supabaseAdmin
@@ -87,16 +92,23 @@ serve(async (req: Request) => {
     const profileFetchError = profileRes?.error;
 
     if (profileFetchError || !callerProfile) {
-      console.warn('[Credzo AdminCreateUser] Caller profile not found:', profileFetchError?.message);
+      console.error('[admin-create-user] operation "fetch_caller_profile" failed:', {
+        code: profileFetchError?.code,
+        message: profileFetchError?.message,
+        details: profileFetchError?.details,
+        hint: profileFetchError?.hint,
+        profileFound: Boolean(callerProfile),
+      });
       return new Response(
-        JSON.stringify({ error: `Caller profile could not be verified: ${profileFetchError?.message || 'Profile missing'}` }),
+        JSON.stringify({ error: 'Caller profile could not be verified.' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[Credzo AdminCreateUser] Caller profile: role=${callerProfile.role}, active=${callerProfile.is_active}, org=${callerProfile.organization_id}`);
+    console.log(`[admin-create-user] Caller verified: role=${callerProfile.role}, active=${callerProfile.is_active}`);
 
     if (callerProfile.is_active === false) {
+      console.warn('[admin-create-user] Caller account is deactivated');
       return new Response(
         JSON.stringify({ error: 'Your account has been deactivated. Operation not permitted.' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -104,6 +116,7 @@ serve(async (req: Request) => {
     }
 
     if (callerProfile.role !== 'OWNER' && callerProfile.role !== 'ADMIN') {
+      console.warn(`[admin-create-user] Permission denied for role=${callerProfile.role}`);
       return new Response(
         JSON.stringify({ error: 'Permission Denied: Only Organization Owners and Admins can manage team members.' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -111,7 +124,14 @@ serve(async (req: Request) => {
     }
 
     // 5. Parse and Validate Request Payload
-    const body = await req.json().catch(() => null);
+    const body = await req.json().catch((jsonErr) => {
+      console.error('[admin-create-user] operation "parse_payload" failed:', {
+        name: jsonErr?.name,
+        message: jsonErr?.message,
+      });
+      return null;
+    });
+
     if (!body || typeof body !== 'object') {
       return new Response(
         JSON.stringify({ error: 'Invalid request payload format.' }),
@@ -125,8 +145,6 @@ serve(async (req: Request) => {
     const trimmedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
     const trimmedMobile = typeof mobile === 'string' ? mobile.trim() : '';
     const targetRole = typeof role === 'string' ? role.trim().toUpperCase() : 'STAFF';
-
-    console.log(`[Credzo AdminCreateUser] Target user: email=${trimmedEmail}, role=${targetRole}, name=${trimmedName}`);
 
     if (!trimmedName || trimmedName.length < 2) {
       return new Response(
@@ -158,7 +176,6 @@ serve(async (req: Request) => {
       );
     }
 
-    // ADMIN callers are strictly limited to creating STAFF accounts
     if (callerProfile.role === 'ADMIN' && targetRole === 'ADMIN') {
       return new Response(
         JSON.stringify({ error: 'Permission Denied: Administrators may only provision STAFF accounts. Contact an Organization Owner to create Admins.' }),
@@ -167,18 +184,19 @@ serve(async (req: Request) => {
     }
 
     // 7. Secure Internal User Creation in Supabase Auth
-    // Cryptographically random high-entropy token used strictly for initial account setup.
-    // Plaintext passwords are NEVER exposed to admins or stored in the database.
-    const internalInitPassword = crypto.randomUUID() + crypto.randomUUID() + '!Aa1';
+    // Single UUID (36 chars) + complexity suffix = 40 characters (well within Bcrypt 72-byte hard limit)
+    const internalInitPassword = crypto.randomUUID() + '!Aa1';
 
-    console.log('[Credzo AdminCreateUser] Calling supabaseAdmin.auth.admin.createUser...');
+    console.log('[admin-create-user] Calling supabaseAdmin.auth.admin.createUser...');
     const createAuthRes = await supabaseAdmin.auth.admin.createUser({
       email: trimmedEmail,
       password: internalInitPassword,
       email_confirm: true,
       user_metadata: {
         full_name: trimmedName,
-        mobile: trimmedMobile,
+        mobile: trimmedMobile || null,
+        organization_id: callerProfile.organization_id,
+        role: targetRole,
       },
     });
 
@@ -186,7 +204,12 @@ serve(async (req: Request) => {
     const authCreateError = createAuthRes?.error;
 
     if (authCreateError || !newAuthData?.user) {
-      console.error('[Credzo AdminCreateUser] Supabase auth.admin.createUser error:', authCreateError?.message);
+      console.error('[admin-create-user] operation "create_auth_user" failed:', {
+        name: authCreateError?.name,
+        message: authCreateError?.message,
+        status: authCreateError?.status,
+        code: (authCreateError as any)?.code,
+      });
       const isDuplicate = authCreateError?.message?.toLowerCase().includes('already registered') ||
         authCreateError?.message?.toLowerCase().includes('duplicate') ||
         authCreateError?.message?.toLowerCase().includes('already been registered');
@@ -202,10 +225,9 @@ serve(async (req: Request) => {
 
     const createdUserId = newAuthData.user.id;
     const createdUserEmail = newAuthData.user.email;
-    console.log(`[Credzo AdminCreateUser] Auth user created successfully: ${createdUserId}`);
+    console.log(`[admin-create-user] Auth user created: user_id=${createdUserId}`);
 
     // 8. Provision or Update Profile Record in caller's organization
-    // Check if profile was auto-provisioned by auth trigger
     const profileCheckRes = await supabaseAdmin
       .from('profiles')
       .select('id, organization_id')
@@ -213,12 +235,22 @@ serve(async (req: Request) => {
       .maybeSingle();
 
     const existingProfile = profileCheckRes?.data;
-    console.log(`[Credzo AdminCreateUser] Existing profile found: ${existingProfile ? 'yes' : 'no'}`);
+    const profileCheckError = profileCheckRes?.error;
+
+    if (profileCheckError) {
+      console.error('[admin-create-user] operation "check_existing_profile" failed:', {
+        code: profileCheckError.code,
+        message: profileCheckError.message,
+        details: profileCheckError.details,
+        hint: profileCheckError.hint,
+      });
+    }
 
     let profileRecord = null;
     let profileInsertError = null;
 
     if (existingProfile) {
+      console.log('[admin-create-user] Updating existing profile for user...');
       const updateRes = await supabaseAdmin
         .from('profiles')
         .update({
@@ -234,11 +266,12 @@ serve(async (req: Request) => {
       profileRecord = updateRes?.data;
       profileInsertError = updateRes?.error;
     } else {
+      console.log('[admin-create-user] Inserting new profile for user...');
       const insertRes = await supabaseAdmin
         .from('profiles')
         .insert({
           id: createdUserId,
-          organization_id: callerProfile.organization_id, // Strictly bound to caller's org
+          organization_id: callerProfile.organization_id,
           full_name: trimmedName,
           role: targetRole,
           mobile: trimmedMobile || null,
@@ -252,16 +285,28 @@ serve(async (req: Request) => {
     }
 
     if (profileInsertError || !profileRecord) {
-      console.error('[Credzo AdminCreateUser] Profile provision error:', profileInsertError?.message);
+      console.error('[admin-create-user] operation "provision_profile" failed:', {
+        code: profileInsertError?.code,
+        message: profileInsertError?.message,
+        details: profileInsertError?.details,
+        hint: profileInsertError?.hint,
+        hasRecord: Boolean(profileRecord),
+      });
+
       // Clean up orphaned auth user if profile insertion failed
-      await supabaseAdmin.auth.admin.deleteUser(createdUserId).catch(() => null);
+      await supabaseAdmin.auth.admin.deleteUser(createdUserId).catch((delErr) => {
+        console.error('[admin-create-user] operation "cleanup_orphaned_user" failed:', {
+          message: delErr?.message,
+        });
+      });
+
       return new Response(
         JSON.stringify({ error: profileInsertError?.message || 'Failed to provision team member profile record.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[Credzo AdminCreateUser] Profile successfully set up for user: ${createdUserId}`);
+    console.log(`[admin-create-user] Profile successfully provisioned for user_id=${createdUserId}`);
 
     return new Response(
       JSON.stringify({
@@ -279,11 +324,16 @@ serve(async (req: Request) => {
       { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err: unknown) {
-    const msg = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-    console.error('[Credzo AdminCreateUser] Unhandled exception:', msg);
+    const error = err as Error;
+    console.error('[admin-create-user] unhandled_exception failed:', {
+      name: error?.name || 'UnknownError',
+      message: error?.message || String(err),
+      stack: error?.stack || null,
+    });
     return new Response(
-      JSON.stringify({ error: `Server exception: ${msg}` }),
+      JSON.stringify({ error: 'Internal Server Error' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
+

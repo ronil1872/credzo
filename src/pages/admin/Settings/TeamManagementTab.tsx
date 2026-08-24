@@ -6,6 +6,7 @@ import { AddTeamMemberModal } from './AddTeamMemberModal';
 import { EditTeamMemberModal } from './EditTeamMemberModal';
 import { DeactivateUserDialog } from './DeactivateUserDialog';
 import { ResetPasswordModal } from './ResetPasswordModal';
+import { DeleteTeamMemberDialog } from './DeleteTeamMemberDialog';
 import '../crm.css';
 
 interface StaffWithStats extends Profile {
@@ -16,7 +17,9 @@ interface StaffWithStats extends Profile {
 
 export const TeamManagementTab: React.FC = () => {
   const { profile } = useAuth();
-  const isAdminOrOwner = profile?.role === 'ADMIN' || profile?.role === 'OWNER';
+  const isCallerOwner = profile?.role === 'OWNER';
+  const isCallerAdmin = profile?.role === 'ADMIN';
+  const isAdminOrOwner = isCallerOwner || isCallerAdmin;
 
   const [teamMembers, setTeamMembers] = useState<StaffWithStats[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +36,7 @@ export const TeamManagementTab: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [statusDialogProfile, setStatusDialogProfile] = useState<Profile | null>(null);
+  const [deleteDialogProfile, setDeleteDialogProfile] = useState<StaffWithStats | null>(null);
   const [resetPasswordProfile, setResetPasswordProfile] = useState<Profile | null>(null);
 
   const fetchTeamData = useCallback(async (isManualRefresh = false) => {
@@ -111,6 +115,13 @@ export const TeamManagementTab: React.FC = () => {
       )
     );
     setSuccessMsg(`Updated profile for ${updatedProfile.full_name}.`);
+    setTimeout(() => setSuccessMsg(null), 4000);
+  };
+
+  // Handle Deleted User
+  const handleUserDeleted = (deletedUserId: string) => {
+    setTeamMembers((prev) => prev.filter((m) => m.id !== deletedUserId));
+    setSuccessMsg('Team member was permanently removed.');
     setTimeout(() => setSuccessMsg(null), 4000);
   };
 
@@ -305,7 +316,25 @@ export const TeamManagementTab: React.FC = () => {
               ) : (
                 filteredMembers.map((member) => {
                   const isMemberOwner = member.role === 'OWNER';
+                  const isMemberAdmin = member.role === 'ADMIN';
+                  const isSelf = profile?.id === member.id;
                   const isActive = member.is_active !== false;
+
+                  // Permission Checks
+                  // 1. Can caller edit this member?
+                  // OWNER can edit everyone (self: name/mobile; others: all).
+                  // ADMIN can edit self (name/mobile) and STAFF accounts. ADMIN cannot edit other ADMINs or OWNER.
+                  const canEdit = isCallerOwner || (isCallerAdmin && (isSelf || !isMemberAdmin && !isMemberOwner));
+
+                  // 2. Can caller deactivate/activate this member?
+                  // Cannot deactivate self. Cannot deactivate OWNER.
+                  // OWNER can deactivate STAFF & ADMIN. ADMIN can only deactivate STAFF.
+                  const canDeactivate = !isSelf && !isMemberOwner && (isCallerOwner || (isCallerAdmin && member.role === 'STAFF'));
+
+                  // 3. Can caller delete this member?
+                  // Cannot delete self. Cannot delete OWNER.
+                  // OWNER can delete STAFF & ADMIN. ADMIN can only delete STAFF.
+                  const canDelete = !isSelf && !isMemberOwner && (isCallerOwner || (isCallerAdmin && member.role === 'STAFF'));
 
                   return (
                     <tr key={member.id}>
@@ -319,12 +348,12 @@ export const TeamManagementTab: React.FC = () => {
                               borderRadius: 'var(--radius-full)',
                               background: isMemberOwner
                                 ? '#fef3c7'
-                                : member.role === 'ADMIN'
+                                : isMemberAdmin
                                 ? '#f3e8ff'
                                 : '#eff6ff',
                               color: isMemberOwner
                                 ? '#b45309'
-                                : member.role === 'ADMIN'
+                                : isMemberAdmin
                                 ? '#7e22ce'
                                 : '#1d4ed8',
                               fontWeight: 800,
@@ -338,8 +367,13 @@ export const TeamManagementTab: React.FC = () => {
                             {member.full_name.slice(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                            <div style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
                               {member.full_name}
+                              {isSelf && (
+                                <span style={{ fontSize: '0.625rem', background: '#e0f2fe', color: '#0369a1', padding: '1px 6px', borderRadius: 'var(--radius-sm)', fontWeight: 700 }}>
+                                  You
+                                </span>
+                              )}
                             </div>
                             <span className="lead-ref-pill">#{member.id.slice(0, 8).toUpperCase()}</span>
                           </div>
@@ -364,25 +398,23 @@ export const TeamManagementTab: React.FC = () => {
                       <td>
                         <span
                           className={`status-badge ${
-                            member.role === 'OWNER'
+                            isMemberOwner
                               ? 'NEW'
-                              : member.role === 'ADMIN'
+                              : isMemberAdmin
                               ? 'CONTACTED'
                               : 'DOCUMENTS'
                           }`}
                           style={{
-                            background:
-                              member.role === 'OWNER'
-                                ? '#fef3c7'
-                                : member.role === 'ADMIN'
-                                ? '#f3e8ff'
-                                : '#eff6ff',
-                            color:
-                              member.role === 'OWNER'
-                                ? '#b45309'
-                                : member.role === 'ADMIN'
-                                ? '#7e22ce'
-                                : '#1d4ed8',
+                            background: isMemberOwner
+                              ? '#fef3c7'
+                              : isMemberAdmin
+                              ? '#f3e8ff'
+                              : '#eff6ff',
+                            color: isMemberOwner
+                              ? '#b45309'
+                              : isMemberAdmin
+                              ? '#7e22ce'
+                              : '#1d4ed8',
                           }}
                         >
                           {member.role}
@@ -437,15 +469,17 @@ export const TeamManagementTab: React.FC = () => {
 
                       {/* 7. Actions */}
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                          <button
-                            type="button"
-                            className="btn btn-outline btn-xs"
-                            onClick={() => setEditingProfile(member)}
-                            title="Edit contact information or role"
-                          >
-                            Edit
-                          </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
+                          {canEdit && (
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-xs"
+                              onClick={() => setEditingProfile(member)}
+                              title={isSelf ? 'Edit your profile details' : 'Edit contact information or role'}
+                            >
+                              Edit
+                            </button>
+                          )}
 
                           <button
                             type="button"
@@ -453,18 +487,35 @@ export const TeamManagementTab: React.FC = () => {
                             onClick={() => setResetPasswordProfile(member)}
                             title="Send password reset link"
                           >
-                            Reset Password
+                            Reset Pwd
                           </button>
 
-                          {!isMemberOwner && (
+                          {canDeactivate && (
                             <button
                               type="button"
                               className={`btn btn-xs ${isActive ? 'btn-outline-danger' : 'btn-outline'}`}
                               onClick={() => setStatusDialogProfile(member)}
                               title={isActive ? 'Deactivate staff account' : 'Reactivate staff account'}
                             >
-                              {isActive ? 'Deactivate' : 'Activate'}
+                              {isActive ? 'Disable' : 'Enable'}
                             </button>
+                          )}
+
+                          {canDelete && (
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-xs"
+                              onClick={() => setDeleteDialogProfile(member)}
+                              title="Permanently delete staff account"
+                            >
+                              Delete
+                            </button>
+                          )}
+
+                          {!canEdit && !canDeactivate && !canDelete && !isSelf && (
+                            <span style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                              Protected
+                            </span>
                           )}
                         </div>
                       </td>
@@ -492,19 +543,32 @@ export const TeamManagementTab: React.FC = () => {
           ) : (
             filteredMembers.map((member) => {
               const isMemberOwner = member.role === 'OWNER';
+              const isMemberAdmin = member.role === 'ADMIN';
+              const isSelf = profile?.id === member.id;
               const isActive = member.is_active !== false;
+
+              const canEdit = isCallerOwner || (isCallerAdmin && (isSelf || !isMemberAdmin && !isMemberOwner));
+              const canDeactivate = !isSelf && !isMemberOwner && (isCallerOwner || (isCallerAdmin && member.role === 'STAFF'));
+              const canDelete = !isSelf && !isMemberOwner && (isCallerOwner || (isCallerAdmin && member.role === 'STAFF'));
 
               return (
                 <div key={member.id} className="lead-mobile-card">
                   <div className="lead-mobile-header">
                     <div>
-                      <div className="lead-mobile-applicant">{member.full_name}</div>
+                      <div className="lead-mobile-applicant" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {member.full_name}
+                        {isSelf && (
+                          <span style={{ fontSize: '0.625rem', background: '#e0f2fe', color: '#0369a1', padding: '1px 6px', borderRadius: 'var(--radius-sm)', fontWeight: 700 }}>
+                            You
+                          </span>
+                        )}
+                      </div>
                       <div className="lead-mobile-city">
                         {member.mobile ? `+91 ${member.mobile}` : 'No phone registered'}
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span className={`status-badge ${member.role === 'OWNER' ? 'NEW' : member.role === 'ADMIN' ? 'CONTACTED' : 'DOCUMENTS'}`}>
+                      <span className={`status-badge ${isMemberOwner ? 'NEW' : isMemberAdmin ? 'CONTACTED' : 'DOCUMENTS'}`}>
                         {member.role}
                       </span>
                       <span
@@ -538,14 +602,16 @@ export const TeamManagementTab: React.FC = () => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: isMemberOwner ? '1fr 1fr' : '1fr 1fr 1fr', gap: 'var(--space-2)', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border-subtle)' }}>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-xs"
-                      onClick={() => setEditingProfile(member)}
-                    >
-                      Edit
-                    </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap', paddingTop: 'var(--space-2)', borderTop: '1px solid var(--border-subtle)' }}>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-xs"
+                        onClick={() => setEditingProfile(member)}
+                      >
+                        Edit
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -555,13 +621,23 @@ export const TeamManagementTab: React.FC = () => {
                       Reset Pwd
                     </button>
 
-                    {!isMemberOwner && (
+                    {canDeactivate && (
                       <button
                         type="button"
                         className={`btn btn-xs ${isActive ? 'btn-outline-danger' : 'btn-outline'}`}
                         onClick={() => setStatusDialogProfile(member)}
                       >
-                        {isActive ? 'Deactivate' : 'Activate'}
+                        {isActive ? 'Disable' : 'Enable'}
+                      </button>
+                    )}
+
+                    {canDelete && (
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-xs"
+                        onClick={() => setDeleteDialogProfile(member)}
+                      >
+                        Delete
                       </button>
                     )}
                   </div>
@@ -593,6 +669,14 @@ export const TeamManagementTab: React.FC = () => {
         onStatusChanged={handleUserUpdated}
       />
 
+      <DeleteTeamMemberDialog
+        isOpen={Boolean(deleteDialogProfile)}
+        onClose={() => setDeleteDialogProfile(null)}
+        targetProfile={deleteDialogProfile}
+        assignedLeadsCount={deleteDialogProfile?.totalLeadsCount || 0}
+        onUserDeleted={handleUserDeleted}
+      />
+
       <ResetPasswordModal
         isOpen={Boolean(resetPasswordProfile)}
         onClose={() => setResetPasswordProfile(null)}
@@ -602,3 +686,4 @@ export const TeamManagementTab: React.FC = () => {
     </div>
   );
 };
+

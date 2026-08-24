@@ -35,24 +35,54 @@ export const DeactivateUserDialog: React.FC<DeactivateUserDialogProps> = ({
 
     try {
       const nextStatus = !isCurrentlyActive;
-      const nowIso = new Date().toISOString();
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({
+      // 1. Retrieve current active session token explicitly
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
+      // 2. Invoke secure Edge Function for server-side status toggling
+      const { data, error } = await supabase.functions.invoke('admin-update-team-member', {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        body: {
+          target_user_id: targetProfile.id,
           is_active: nextStatus,
-          updated_at: nowIso,
-        })
-        .eq('id', targetProfile.id)
-        .select()
-        .single();
+        },
+      });
 
       if (error) {
-        console.error('[Credzo CRM] Toggle active status error:', error);
-        setErrorMsg(error.message || 'Failed to update account status.');
-      } else if (data) {
-        onStatusChanged(data as Profile);
+        let displayError = error.message;
+        if ('context' in error && (error as any).context) {
+          try {
+            const res = (error as any).context as Response;
+            const cloned = typeof res.clone === 'function' ? res.clone() : res;
+            const text = await cloned.text();
+            try {
+              const json = JSON.parse(text);
+              if (json?.error) displayError = json.error;
+            } catch {
+              if (text && !text.includes('<!DOCTYPE') && !text.includes('<html>')) {
+                displayError = text;
+              }
+            }
+          } catch {}
+        }
+        console.error('[Credzo CRM] Toggle active status error:', displayError, error);
+        setErrorMsg(displayError || 'Failed to update account status.');
+        setLoading(false);
+        return;
+      }
+
+      if (data?.error) {
+        setErrorMsg(data.error);
+        setLoading(false);
+        return;
+      }
+
+      if (data?.profile) {
+        onStatusChanged(data.profile as Profile);
         onClose();
+      } else {
+        setErrorMsg('Unexpected server response. Please refresh the team list.');
       }
     } catch (err: unknown) {
       console.error('[Credzo CRM] Unexpected toggle active status exception:', err);
