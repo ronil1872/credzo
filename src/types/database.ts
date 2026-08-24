@@ -54,6 +54,7 @@ export interface Database {
           role: UserRole;
           mobile: string | null;
           is_active: boolean;
+          must_change_password?: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -64,6 +65,7 @@ export interface Database {
           role?: UserRole;
           mobile?: string | null;
           is_active?: boolean;
+          must_change_password?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -74,6 +76,7 @@ export interface Database {
           role?: UserRole;
           mobile?: string | null;
           is_active?: boolean;
+          must_change_password?: boolean;
           created_at?: string;
           updated_at?: string;
         };

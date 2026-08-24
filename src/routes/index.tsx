@@ -22,6 +22,7 @@ import { NotFoundPage } from '../pages/NotFound/NotFoundPage';
 // Admin Pages
 import { LoginPage } from '../pages/admin/Login/LoginPage';
 import { ResetPasswordPage } from '../pages/admin/ResetPassword/ResetPasswordPage';
+import { ChangePasswordPage } from '../pages/admin/ChangePassword/ChangePasswordPage';
 import { DashboardPage } from '../pages/admin/Dashboard/DashboardPage';
 import { LeadsPage } from '../pages/admin/Leads/LeadsPage';
 import { LeadDetailPage } from '../pages/admin/LeadDetail/LeadDetailPage';
@@ -46,6 +47,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/admin/login" element={<LoginPage />} />
           <Route path="/admin/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/admin/change-password" element={<ChangePasswordPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
 

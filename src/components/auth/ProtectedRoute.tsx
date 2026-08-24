@@ -48,5 +48,9 @@ export const ProtectedRoute: React.FC = () => {
     return <Navigate to="/admin/login" state={{ deact: true }} replace />;
   }
 
+  if (profile && profile.must_change_password === true) {
+    return <Navigate to="/admin/change-password" replace />;
+  }
+
   return <Outlet />;
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { Profile } from '../../../types';
 import '../crm.css';
@@ -20,8 +20,10 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [sentSuccess, setSentSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isRateLimited, setIsRateLimited] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (targetEmail) {
       setEmailInput(targetEmail);
     } else {
@@ -29,13 +31,32 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
     }
     setSentSuccess(false);
     setErrorMsg(null);
-  }, [targetEmail, targetProfile]);
+    setIsRateLimited(false);
+    setLoading(false);
+  }, [targetEmail, targetProfile, isOpen]);
+
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (cooldownSeconds <= 0) {
+      if (isRateLimited) setIsRateLimited(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCooldownSeconds((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [cooldownSeconds, isRateLimited]);
 
   if (!isOpen || !targetProfile) return null;
 
   const handleSendReset = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading || cooldownSeconds > 0) return;
+
     setErrorMsg(null);
+    setIsRateLimited(false);
 
     const emailToSend = (emailInput || targetEmail || '').trim().toLowerCase();
     if (!emailToSend || !emailToSend.includes('@')) {
@@ -52,14 +73,29 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       });
 
       if (error) {
-        console.error('[Credzo CRM] Reset password error:', error);
-        setErrorMsg(error.message || 'Failed to dispatch password reset request.');
+        console.warn('[Credzo CRM] Reset password response:', error.message, error.status);
+
+        // Detect Supabase Email Rate Limit (Status 429 or over_email_send_rate_limit)
+        const isRateLimitError =
+          error.status === 429 ||
+          (error as any).code === 'over_email_send_rate_limit' ||
+          error.message?.toLowerCase().includes('rate limit') ||
+          error.message?.toLowerCase().includes('too many requests') ||
+          error.message?.toLowerCase().includes('over_email_send_rate_limit');
+
+        if (isRateLimitError) {
+          setIsRateLimited(true);
+          setErrorMsg('Password reset email limit reached. Please wait before sending another reset email.');
+          setCooldownSeconds(60); // 60-second cooldown
+        } else {
+          setErrorMsg(error.message || 'Failed to dispatch password reset request.');
+        }
       } else {
         setSentSuccess(true);
       }
     } catch (err: unknown) {
       console.error('[Credzo CRM] Reset password exception:', err);
-      setErrorMsg('An unexpected network error occurred.');
+      setErrorMsg('An unexpected network error occurred. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -87,7 +123,14 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
-            <span>{errorMsg}</span>
+            <div>
+              <span>{errorMsg}</span>
+              {isRateLimited && (
+                <div style={{ fontSize: '0.6875rem', marginTop: 4, opacity: 0.9 }}>
+                  Supabase security enforces a rate limit between email dispatches to prevent spam. Please wait {cooldownSeconds > 0 ? `${cooldownSeconds}s` : 'a moment'} before retrying.
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -99,7 +142,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
                   <span>✓</span> Password Reset Link Sent
                 </div>
                 <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', lineHeight: 1.5 }}>
-                  A secure one-time password recovery link has been dispatched to <strong>{emailInput || targetEmail}</strong>. The link will remain valid for 24 hours.
+                  A secure one-time password recovery link has been dispatched to <strong>{emailInput || targetEmail}</strong>. The recipient can set their private password at <strong>/admin/reset-password</strong>.
                 </p>
               </div>
 
@@ -128,7 +171,7 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
                   onChange={(e) => setEmailInput(e.target.value)}
                   placeholder="name@credzofinance.com"
                   required
-                  disabled={loading}
+                  disabled={loading || cooldownSeconds > 0}
                 />
               </div>
 
@@ -136,8 +179,16 @@ export const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
                 <button type="button" className="btn btn-outline btn-sm" onClick={onClose} disabled={loading}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary btn-sm" disabled={loading}>
-                  {loading ? 'Sending Link...' : 'Send Reset Link'}
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={loading || cooldownSeconds > 0 || !emailInput.trim()}
+                >
+                  {loading
+                    ? 'Sending Link...'
+                    : cooldownSeconds > 0
+                    ? `Please wait (${cooldownSeconds}s)`
+                    : 'Send Reset Link'}
                 </button>
               </div>
             </form>
