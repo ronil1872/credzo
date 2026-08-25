@@ -56,13 +56,24 @@ export const PublicLayout: React.FC = () => {
       <header className="public-header">
         <div className="container public-header-inner">
           <Link to="/" className="public-brand" onClick={closeMobileMenu} aria-label="Credzo Finance Home">
-            <img
-              src="/images/credzo-finance-logo.png"
-              alt="Credzo Finance"
-              className="brand-logo-img"
-              width="160"
-              height="38"
-            />
+            <div className="brand-logo-container">
+              <div className="brand-icon-wrapper">
+                <img
+                  src="/images/credzo-icon.png"
+                  alt="Credzo"
+                  className="brand-icon-img"
+                  width="38"
+                  height="38"
+                />
+              </div>
+              <div className="brand-text-wrapper">
+                <div className="brand-name-stacked">
+                  <span className="brand-name-credzo">CREDZO</span>
+                  <span className="brand-name-finance">FINANCE</span>
+                </div>
+                <span className="brand-tagline">Simplifying Loans, Amplifying Dreams</span>
+              </div>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
@@ -196,13 +207,24 @@ export const PublicLayout: React.FC = () => {
           <div className="footer-top">
             <div className="footer-brand-col">
               <Link to="/" className="public-brand footer-logo" aria-label="Credzo Finance Home">
-                <img
-                  src="/images/credzo-finance-logo.png"
-                  alt="Credzo Finance"
-                  className="brand-logo-img footer-logo-img"
-                  width="180"
-                  height="42"
-                />
+                <div className="brand-logo-container">
+                  <div className="brand-icon-wrapper">
+                    <img
+                      src="/images/credzo-icon.png"
+                      alt="Credzo"
+                      className="brand-icon-img"
+                      width="38"
+                      height="38"
+                    />
+                  </div>
+                  <div className="brand-text-wrapper">
+                    <div className="brand-name-stacked">
+                      <span className="brand-name-credzo">CREDZO</span>
+                      <span className="brand-name-finance">FINANCE</span>
+                    </div>
+                    <span className="brand-tagline">Simplifying Loans, Amplifying Dreams</span>
+                  </div>
+                </div>
               </Link>
               <p className="footer-tagline">
                 Fast, transparent, illustrative loan estimations &amp; comprehensive insurance facilitation.
