@@ -28,27 +28,37 @@
 .public-brand {
   display: flex;
   align-items: center;
-  gap: 2px;
-  font-size: var(--font-size-xl);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: var(--text-primary);
   text-decoration: none;
 }
 
-@media (max-width: 360px) {
-  .public-brand {
-    font-size: var(--font-size-lg);
+.brand-logo-img {
+  height: 38px;
+  width: auto;
+  max-width: 170px;
+  object-fit: contain;
+  display: block;
+}
+
+.footer-logo-img {
+  height: 42px;
+  max-width: 190px;
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  padding: 4px 8px;
+}
+
+@media (max-width: 480px) {
+  .brand-logo-img {
+    height: 30px;
+    max-width: 135px;
   }
 }
 
-.brand-name {
-  color: var(--text-primary);
-}
-
-.brand-accent {
-  color: var(--color-primary);
-  font-weight: 800;
+@media (max-width: 360px) {
+  .brand-logo-img {
+    height: 26px;
+    max-width: 120px;
+  }
 }
 
 .public-nav {

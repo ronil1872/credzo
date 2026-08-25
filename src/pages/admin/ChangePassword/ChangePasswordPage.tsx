@@ -115,8 +115,13 @@ export const ChangePasswordPage: React.FC = () => {
         {/* Brand Header */}
         <div className="change-password-header">
           <Link to="/" className="change-password-brand" aria-label="Credzo Finance Home">
-            <span className="brand-logo-main">Credzo</span>
-            <span className="brand-logo-sub">Finance</span>
+            <img
+              src="/images/credzo-finance-logo.png"
+              alt="Credzo Finance"
+              className="change-password-brand-logo-img"
+              width="180"
+              height="42"
+            />
             <span className="crm-pill">CRM</span>
           </Link>
           <h1 className="change-password-title">First-Time Password Setup</h1>

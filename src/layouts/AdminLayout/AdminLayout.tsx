@@ -162,8 +162,14 @@ export const AdminLayout: React.FC = () => {
       >
         <div className="admin-sidebar-header">
           <Link to="/admin" className="admin-brand" aria-label="Credzo CRM Home">
-            <span className="brand-primary">Credzo</span>
-            <span className="brand-accent">CRM</span>
+            <img
+              src="/images/credzo-finance-logo.png"
+              alt="Credzo Finance CRM"
+              className="admin-brand-logo-img"
+              width="145"
+              height="34"
+            />
+            <span className="crm-pill">CRM</span>
           </Link>
           <button
             type="button"
@@ -231,7 +237,14 @@ export const AdminLayout: React.FC = () => {
                   <line x1="3" y1="18" x2="21" y2="18" />
                 </svg>
               </button>
-              <Link to="/admin" className="admin-topbar-mobile-brand">
+              <Link to="/admin" className="admin-topbar-mobile-brand" aria-label="Credzo CRM Home">
+                <img
+                  src="/images/credzo-icon.png"
+                  alt="Credzo CRM"
+                  className="admin-topbar-mobile-icon"
+                  width="22"
+                  height="22"
+                />
                 <span className="brand-primary">Credzo</span>
                 <span className="brand-accent">CRM</span>
               </Link>

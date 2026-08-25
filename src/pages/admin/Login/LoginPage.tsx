@@ -175,8 +175,13 @@ export const LoginPage: React.FC = () => {
         {/* Brand Header */}
         <div className="login-card-header">
           <div className="login-brand-logo">
-            <span className="brand-logo-main">Credzo</span>
-            <span className="brand-logo-sub">Finance</span>
+            <img
+              src="/images/credzo-finance-logo.png"
+              alt="Credzo Finance"
+              className="login-brand-logo-img"
+              width="180"
+              height="42"
+            />
             <span className="login-crm-tag">CRM</span>
           </div>
           <h1 className="login-title">

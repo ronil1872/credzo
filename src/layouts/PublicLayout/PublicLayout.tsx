@@ -55,9 +55,14 @@ export const PublicLayout: React.FC = () => {
       {/* Top Header */}
       <header className="public-header">
         <div className="container public-header-inner">
-          <Link to="/" className="public-brand" onClick={closeMobileMenu}>
-            <span className="brand-name">Credzo</span>
-            <span className="brand-accent">Finance</span>
+          <Link to="/" className="public-brand" onClick={closeMobileMenu} aria-label="Credzo Finance Home">
+            <img
+              src="/images/credzo-finance-logo.png"
+              alt="Credzo Finance"
+              className="brand-logo-img"
+              width="160"
+              height="38"
+            />
           </Link>
 
           {/* Desktop Navigation */}
@@ -190,9 +195,14 @@ export const PublicLayout: React.FC = () => {
         <div className="container public-footer-inner">
           <div className="footer-top">
             <div className="footer-brand-col">
-              <Link to="/" className="public-brand footer-logo">
-                <span className="brand-name">Credzo</span>
-                <span className="brand-accent">Finance</span>
+              <Link to="/" className="public-brand footer-logo" aria-label="Credzo Finance Home">
+                <img
+                  src="/images/credzo-finance-logo.png"
+                  alt="Credzo Finance"
+                  className="brand-logo-img footer-logo-img"
+                  width="180"
+                  height="42"
+                />
               </Link>
               <p className="footer-tagline">
                 Fast, transparent, illustrative loan estimations &amp; comprehensive insurance facilitation.
