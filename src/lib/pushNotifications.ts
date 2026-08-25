@@ -294,7 +294,7 @@ export async function subscribeStaffToPush(
 
   try {
     // Step 1: Request native browser notification permission
-    console.log('[Push Debug] Permission request started');
+    console.log('[Push Debug] Step 1/7: Permission request started');
     let permission: NotificationPermission = Notification.permission;
     if (permission !== 'granted') {
       try {
@@ -304,14 +304,15 @@ export async function subscribeStaffToPush(
           'Notification permission prompt timed out or was dismissed'
         );
       } catch (permErr: unknown) {
-        console.warn('[Push Debug] Permission request rejected or timed out:', permErr);
+        const errorObj = permErr as Error;
+        console.error('[Push Debug] ❌ Step 1 failed:', { name: errorObj.name, message: errorObj.message });
         return {
           success: false,
-          error: (permErr as Error)?.message || 'Notification permission request timed out.',
+          error: `Permission error (${errorObj.name}): ${errorObj.message || 'Notification permission request timed out.'}`,
         };
       }
     }
-    console.log('[Push Debug] Permission result:', permission);
+    console.log('[Push Debug] Step 1/7: Permission result:', permission);
 
     if (permission !== 'granted') {
       return {
@@ -319,54 +320,55 @@ export async function subscribeStaffToPush(
         error:
           permission === 'denied'
             ? 'Notifications were blocked in your browser. Please click the site settings/lock icon in your URL address bar and allow notifications.'
-            : 'Notification permission was not granted.',
+            : 'Notification permission was not granted by the browser.',
       };
     }
 
     // Step 2: Register & activate Service Worker
-    console.log('[Push Debug] Service worker registration');
+    console.log('[Push Debug] Step 2/7: Service worker registration & activation check');
     const registration = await ensureActiveServiceWorker();
     if (!registration) {
       return {
         success: false,
-        error: 'Failed to register or activate the service worker. Please refresh the page and try again.',
+        error: 'Service Worker failed to activate. Please refresh the page and try again.',
       };
     }
 
     if (!('pushManager' in registration)) {
       return {
         success: false,
-        error: 'PushManager API is not available on the active service worker registration.',
+        error: 'PushManager API is not available on this browser service worker registration.',
       };
     }
+    console.log('[Push Debug] Step 2/7: Service worker active verified. Scope:', registration.scope);
 
     // Step 3: VAPID public key conversion
-    console.log('[Push Debug] VAPID conversion');
+    console.log('[Push Debug] Step 3/7: VAPID conversion');
     const vapidKey = getVapidPublicKey();
     if (!vapidKey) {
-      return { success: false, error: 'VAPID public key is missing from environment.' };
+      return { success: false, error: 'VAPID public key is missing from environment configuration.' };
     }
     const applicationServerKey = urlBase64ToUint8Array(vapidKey);
+    console.log('[Push Debug] Step 3/7: VAPID key converted successfully. ByteLength:', applicationServerKey.byteLength);
 
     // Step 4: PushManager subscription
-    console.log('[Push Debug] PushManager subscription started');
+    console.log('[Push Debug] Step 4/7: PushManager subscription started');
     let pushSubscription: PushSubscription | null = null;
 
     try {
-      // Check existing subscription
       const existingSub = await withTimeout(
         registration.pushManager.getSubscription(),
-        5000,
+        4000,
         'Checking existing subscription timed out'
       );
 
       if (existingSub) {
-        console.log('[Push Debug] Found existing push subscription. Checking validity...');
+        console.log('[Push Debug] Found existing push subscription:', existingSub.endpoint);
         const existingKey = existingSub.getKey('p256dh');
         if (existingKey) {
           pushSubscription = existingSub;
         } else {
-          console.warn('[Push Debug] Existing subscription missing keys. Resetting...');
+          console.warn('[Push Debug] Existing subscription missing cryptographic keys. Unsubscribing...');
           await existingSub.unsubscribe().catch(() => {});
         }
       }
@@ -374,7 +376,6 @@ export async function subscribeStaffToPush(
       console.warn('[Push Debug] Notice while checking existing subscription:', checkErr);
     }
 
-    // If no valid existing subscription, subscribe fresh
     if (!pushSubscription) {
       try {
         pushSubscription = await withTimeout(
@@ -386,10 +387,18 @@ export async function subscribeStaffToPush(
           'PushManager subscription timed out waiting for browser push service'
         );
       } catch (subErr: unknown) {
-        console.warn('[Push Debug] Direct subscription attempt failed, attempting reset:', subErr);
+        const errorObj = subErr as (Error & { code?: number });
+        console.warn('[Push Debug] Direct subscription attempt failed:', {
+          name: errorObj.name,
+          message: errorObj.message,
+          code: errorObj.code,
+        });
+
+        // If conflict with existing subscription, reset and retry
         try {
           const oldSub = await registration.pushManager.getSubscription();
           if (oldSub) {
+            console.log('[Push Debug] Clearing old subscription before retry...');
             await oldSub.unsubscribe().catch(() => {});
           }
           pushSubscription = await withTimeout(
@@ -401,12 +410,25 @@ export async function subscribeStaffToPush(
             'PushManager re-subscription timed out'
           );
         } catch (retryErr: unknown) {
-          console.error('[Push Debug] PushManager subscribe failed after reset:', retryErr);
+          const retryErrorObj = retryErr as (Error & { code?: number });
+          console.error('[Push Debug] ❌ Step 4 PushManager.subscribe failed after reset:', {
+            name: retryErrorObj.name,
+            message: retryErrorObj.message,
+            code: retryErrorObj.code,
+            stack: retryErrorObj.stack,
+          });
+
+          const isPushServiceErr =
+            retryErrorObj.message?.toLowerCase().includes('push service error') ||
+            retryErrorObj.name === 'AbortError';
+
+          const errorMessage = isPushServiceErr
+            ? 'Browser Push Service error: The browser push service could not establish a connection. If on iPad/iPhone, ensure Credzo CRM is launched from your Home Screen (PWA mode). If on PC, check notification permissions in browser and OS settings.'
+            : `Push subscription error (${retryErrorObj.name}): ${retryErrorObj.message || 'Push service registration failed.'}`;
+
           return {
             success: false,
-            error:
-              (retryErr as Error)?.message ||
-              'Failed to generate browser push subscription with push service.',
+            error: errorMessage,
           };
         }
       }
@@ -415,13 +437,15 @@ export async function subscribeStaffToPush(
     if (!pushSubscription || !pushSubscription.endpoint) {
       return { success: false, error: 'PushManager failed to return a valid subscription endpoint.' };
     }
+    console.log('[Push Debug] Step 4/7: PushManager subscription obtained:', pushSubscription.endpoint);
 
     // Step 5: Extract subscription keys
+    console.log('[Push Debug] Step 5/7: Extracting subscription keys');
     const rawP256dh = pushSubscription.getKey('p256dh');
     const rawAuth = pushSubscription.getKey('auth');
 
     if (!rawP256dh || !rawAuth) {
-      return { success: false, error: 'Failed to extract cryptographic subscription keys from browser.' };
+      return { success: false, error: 'Failed to extract cryptographic subscription keys (P256DH / Auth) from browser.' };
     }
 
     const p256dh = btoa(String.fromCharCode(...new Uint8Array(rawP256dh)))
@@ -436,8 +460,10 @@ export async function subscribeStaffToPush(
 
     const deviceName = getFriendlyDeviceName();
     const userAgent = navigator.userAgent;
+    console.log('[Push Debug] Step 5/7: Cryptographic keys extracted successfully. Device:', deviceName);
 
     // Step 6: Supabase session & user resolution
+    console.log('[Push Debug] Step 6/7: Resolving Supabase auth session');
     let effectiveUserId = userId;
     let effectiveOrgId = organizationId;
 
@@ -469,13 +495,13 @@ export async function subscribeStaffToPush(
       return { success: false, error: 'Organization ID not found for current user session.' };
     }
 
-    console.log('[Push Debug] Supabase session found:', {
+    console.log('[Push Debug] Step 6/7: Supabase session verified:', {
       userId: effectiveUserId,
       organizationId: effectiveOrgId,
     });
 
     // Step 7: Save / Upsert subscription in Supabase database
-    console.log('[Push Debug] Saving subscription');
+    console.log('[Push Debug] Step 7/7: Saving subscription to Supabase push_subscriptions table');
     const upsertRes = await withTimeout(
       Promise.resolve(
         supabase.from('push_subscriptions').upsert(
@@ -501,20 +527,25 @@ export async function subscribeStaffToPush(
     );
 
     if (upsertRes.error) {
-      console.error('[Push Debug] Failed to save push subscription to DB:', upsertRes.error);
-      return { success: false, error: `Database error: ${upsertRes.error.message}` };
+      console.error('[Push Debug] ❌ Step 7 DB upsert failed:', upsertRes.error);
+      return { success: false, error: `Database error (${upsertRes.error.code}): ${upsertRes.error.message}` };
     }
 
-    console.log('[Push Debug] Subscription saved');
+    console.log('[Push Debug] Step 7/7: Subscription record successfully saved in database');
     const duration = Date.now() - startTime;
-    console.log(`[Push Debug] Enable flow completed in ${duration}ms`);
+    console.log(`[Push Debug] Enable flow completed successfully in ${duration}ms`);
 
     return { success: true, subscription: pushSubscription };
   } catch (err: unknown) {
-    console.error('[Push Debug] Unexpected error during push enablement:', err);
+    const errorObj = err as Error;
+    console.error('[Push Debug] ❌ Unexpected error in enable flow:', {
+      name: errorObj.name,
+      message: errorObj.message,
+      stack: errorObj.stack,
+    });
     return {
       success: false,
-      error: (err as Error)?.message || 'Failed to complete push notification setup.',
+      error: errorObj.message || 'An unexpected error occurred during push notification setup.',
     };
   }
 }
