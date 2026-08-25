@@ -6,6 +6,7 @@ import { RelatedEnquiriesCard } from './RelatedEnquiriesCard';
 import { DeleteLeadDialog } from './DeleteLeadDialog';
 import { useAuth } from '../../../hooks';
 import { Lead, LeadStatus, LeadNote, FollowUp } from '../../../types/database';
+import { dispatchPushNotification, NotificationTemplates } from '../../../lib/pushNotifications';
 import '../crm.css';
 
 interface LeadDetailModalProps {
@@ -212,6 +213,7 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
       .eq('id', leadId);
 
     if (!error) {
+      const oldStatus = lead.status;
       const updated: Lead = {
         ...lead,
         status: selectedStatus,
@@ -222,6 +224,21 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
       setLead(updated);
       onLeadUpdated?.(updated);
       setSaveMsg('Status & amounts updated successfully.');
+
+      // Real Push Notification Dispatch if status changed
+      if (oldStatus !== selectedStatus) {
+        const notifPayload =
+          selectedStatus === 'DOCUMENTS'
+            ? NotificationTemplates.documentPending(lead.name, leadId)
+            : NotificationTemplates.applicationStatus(lead.name, selectedStatus, leadId);
+
+        dispatchPushNotification({
+          targetUserId: lead.assigned_to || undefined,
+          allOrganizationStaff: !lead.assigned_to,
+          organizationId: lead.organization_id,
+          notification: notifPayload,
+        }).catch((err) => console.warn('[Credzo Push] Modal status notification notice:', err));
+      }
     } else {
       setSaveMsg('Error saving updates. Please try again.');
     }
@@ -277,6 +294,13 @@ export const LeadDetailModal: React.FC<LeadDetailModalProps> = ({
       );
       setFuDate('');
       setFuNote('');
+
+      // Real Push Notification Dispatch for scheduled follow-up
+      dispatchPushNotification({
+        targetUserId: profile?.id,
+        organizationId: lead.organization_id,
+        notification: NotificationTemplates.followUpDue(lead.name, leadId, (data as FollowUp).id),
+      }).catch((err) => console.warn('[Credzo Push] Modal follow-up notification notice:', err));
     }
     setSavingFu(false);
   };

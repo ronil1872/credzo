@@ -4,6 +4,7 @@ import { useAuth } from '../../../hooks';
 import { formatIndianCurrency, LOAN_CONFIGURATIONS } from '../../../lib/calculator';
 import { LoanInterestRate } from '../../../types';
 import { TeamManagementTab } from './TeamManagementTab';
+import { NotificationsSettingsTab } from './NotificationsSettingsTab';
 import '../crm.css';
 
 interface EditableRateItem {
@@ -185,7 +186,7 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'rates' | 'team' | 'profile'>('rates');
+  const [activeTab, setActiveTab] = useState<'rates' | 'team' | 'notifications' | 'profile'>('rates');
 
   return (
     <div>
@@ -221,12 +222,25 @@ export const SettingsPage: React.FC = () => {
 
         <button
           type="button"
+          className={`crm-modal-tab ${activeTab === 'notifications' ? 'active' : ''}`}
+          onClick={() => setActiveTab('notifications')}
+        >
+          🔔 Push Notifications
+        </button>
+
+        <button
+          type="button"
           className={`crm-modal-tab ${activeTab === 'profile' ? 'active' : ''}`}
           onClick={() => setActiveTab('profile')}
         >
           🔐 Profile & Security
         </button>
       </div>
+
+      {/* Tab: Push Notifications */}
+      {activeTab === 'notifications' && (
+        <NotificationsSettingsTab />
+      )}
 
       {/* Tab 1: Team & Staff Management */}
       {activeTab === 'team' && isAdminOrOwner && (

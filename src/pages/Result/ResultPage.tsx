@@ -280,6 +280,16 @@ export const ResultPage: React.FC = () => {
        * The public anon role should not have SELECT access to leads.
        */
 
+      // Real Web Push Notification Dispatch to active staff devices
+      supabase.functions
+        .invoke('send-push-notification', {
+          body: {
+            event_type: 'PUBLIC_LEAD_SUBMISSION',
+            lead: leadPayload,
+          },
+        })
+        .catch((notifErr) => console.warn('[Credzo Push] Realtime notification dispatch notice:', notifErr));
+
       setIsSubmitted(true);
     } catch (err: unknown) {
       console.error(

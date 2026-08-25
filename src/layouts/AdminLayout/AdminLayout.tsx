@@ -1,7 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks';
+import { supabase } from '../../lib/supabase';
 import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
+import {
+  checkStaffPushSubscriptionStatus,
+  NotificationPermissionState,
+} from '../../lib/pushNotifications';
+import {
+  NotificationPermissionModal,
+  NotificationBannerReminder,
+  NotificationStatusIndicator,
+} from '../../components/notifications';
 import './AdminLayout.css';
 
 export const AdminLayout: React.FC = () => {
@@ -9,6 +19,83 @@ export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile, signOut } = useAuth();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Web Push Notification State
+  const [permissionState, setPermissionState] = useState<NotificationPermissionState>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission as NotificationPermissionState;
+    }
+    return 'default';
+  });
+  const [isSubscribed, setIsSubscribed] = useState<boolean>(false);
+  const [isNotifModalOpen, setIsNotifModalOpen] = useState<boolean>(false);
+
+  const refreshNotificationStatus = useCallback(async () => {
+    console.log('[Credzo Push Debug] 🔍 Initializing Web Push audit for authenticated CRM user:', {
+      userId: user?.id,
+      userEmail: user?.email,
+      role: profile?.role,
+      hasNotificationApi: typeof window !== 'undefined' && 'Notification' in window,
+      rawNotificationPermission: typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'unsupported',
+      hasServiceWorkerApi: typeof window !== 'undefined' && 'serviceWorker' in navigator,
+      hasPushManagerApi: typeof window !== 'undefined' && 'PushManager' in window,
+    });
+
+    if (!user?.id) {
+      console.log('[Credzo Push Debug] Waiting for authenticated user identity...');
+      return;
+    }
+
+    try {
+      // 1. Ensure service worker is registered
+      if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then((reg) => console.info('[Credzo Push Debug] ✅ /sw.js active registration ready:', reg.scope))
+          .catch((swErr) => console.warn('[Credzo Push Debug] ⚠️ Service worker registration warning:', swErr));
+      }
+
+      // 2. Query subscription and permission status
+      const status = await checkStaffPushSubscriptionStatus(user.id);
+      console.log('[Credzo Push Debug] 📊 Device Subscription Status:', status);
+
+      setPermissionState(status.permission);
+      setIsSubscribed(status.isSubscribed);
+
+      // 3. Permission Modal Trigger Logic
+      const isDismissed = sessionStorage.getItem('credzo_notif_modal_dismissed') === 'true';
+      const shouldPrompt = (status.permission === 'default' || status.permission === 'unsupported') && !status.isSubscribed && !isDismissed;
+
+      console.log('[Credzo Push Debug] 🔔 Modal Trigger Evaluation:', {
+        permission: status.permission,
+        isSubscribed: status.isSubscribed,
+        isDismissedInSession: isDismissed,
+        willShowModal: shouldPrompt,
+      });
+
+      if (shouldPrompt) {
+        setIsNotifModalOpen(true);
+      }
+    } catch (err) {
+      console.error('[Credzo Push Debug] ❌ Error refreshing notification status:', err);
+    }
+  }, [user?.id, user?.email, profile?.role]);
+
+  useEffect(() => {
+    refreshNotificationStatus();
+  }, [user?.id, refreshNotificationStatus]);
+
+  // Periodic check for due follow-ups and cold leads across the organization
+  useEffect(() => {
+    if (!profile?.organization_id) return;
+    supabase.functions
+      .invoke('send-push-notification', {
+        body: {
+          action: 'check-crm-reminders',
+          organization_id: profile.organization_id,
+        },
+      })
+      .catch(() => {});
+  }, [profile?.organization_id]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -46,6 +133,16 @@ export const AdminLayout: React.FC = () => {
 
   return (
     <div className="admin-layout">
+      {/* Push Notification First-Time Permission Request Modal */}
+      <NotificationPermissionModal
+        isOpen={isNotifModalOpen}
+        onClose={() => setIsNotifModalOpen(false)}
+        onSubscribed={() => {
+          setIsNotifModalOpen(false);
+          refreshNotificationStatus();
+        }}
+      />
+
       {/* Mobile Drawer Backdrop Overlay */}
       {isDrawerOpen && (
         <div
@@ -140,6 +237,12 @@ export const AdminLayout: React.FC = () => {
           </div>
 
           <div className="admin-topbar-user">
+            {/* Notification Status Indicator Pill */}
+            <NotificationStatusIndicator
+              permissionState={permissionState}
+              isSubscribed={isSubscribed}
+            />
+
             <div className="user-profile-info">
               <span className="user-name">{displayName}</span>
               <span className={`user-role-badge role-${roleName.toLowerCase()}`} aria-label={`Role: ${roleName}`}>
@@ -158,6 +261,13 @@ export const AdminLayout: React.FC = () => {
         </header>
 
         <main className="admin-main" id="main-content" role="main">
+          {/* Persistent Notification Banner Reminder when notifications are disabled or blocked */}
+          <NotificationBannerReminder
+            permissionState={permissionState}
+            isSubscribed={isSubscribed}
+            onRefreshStatus={refreshNotificationStatus}
+          />
+
           <ErrorBoundary context="Admin Page">
             <Outlet />
           </ErrorBoundary>
@@ -166,4 +276,3 @@ export const AdminLayout: React.FC = () => {
     </div>
   );
 };
-

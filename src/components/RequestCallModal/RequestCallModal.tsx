@@ -134,6 +134,16 @@ export const RequestCallModal: React.FC<RequestCallModalProps> = ({
 
         const { error } = await supabase.from('leads').insert(leadPayload);
         if (error) throw error;
+
+        // Real Web Push Notification Dispatch to active staff devices
+        supabase.functions
+          .invoke('send-push-notification', {
+            body: {
+              event_type: 'PUBLIC_LEAD_SUBMISSION',
+              lead: leadPayload,
+            },
+          })
+          .catch((notifErr) => console.warn('[Credzo Push] Modal lead notification notice:', notifErr));
       } else {
         const insurancePayload = {
           full_name: trimmedName,
@@ -158,6 +168,16 @@ export const RequestCallModal: React.FC<RequestCallModalProps> = ({
 
         const { error } = await supabase.from('insurance_leads').insert(insurancePayload);
         if (error) throw error;
+
+        // Real Web Push Notification Dispatch to active staff devices
+        supabase.functions
+          .invoke('send-push-notification', {
+            body: {
+              event_type: 'PUBLIC_LEAD_SUBMISSION',
+              lead: insurancePayload,
+            },
+          })
+          .catch((notifErr) => console.warn('[Credzo Push] Insurance lead notification notice:', notifErr));
       }
 
       setIsSuccess(true);

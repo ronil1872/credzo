@@ -731,6 +731,126 @@ export interface Database {
         };
         Relationships: [];
       };
+      push_subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          organization_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          user_agent: string | null;
+          device_name: string | null;
+          is_active: boolean;
+          last_used_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          organization_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          user_agent?: string | null;
+          device_name?: string | null;
+          is_active?: boolean;
+          last_used_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          organization_id?: string;
+          endpoint?: string;
+          p256dh?: string;
+          auth?: string;
+          user_agent?: string | null;
+          device_name?: string | null;
+          is_active?: boolean;
+          last_used_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'push_subscriptions_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'push_subscriptions_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      notification_logs: {
+        Row: {
+          id: string;
+          organization_id: string;
+          user_id: string | null;
+          notification_type: string;
+          title: string;
+          body: string;
+          url: string | null;
+          data: Json | null;
+          status: 'SENT' | 'FAILED' | 'PARTIAL';
+          devices_targeted: number;
+          devices_succeeded: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          user_id?: string | null;
+          notification_type: string;
+          title: string;
+          body: string;
+          url?: string | null;
+          data?: Json | null;
+          status?: 'SENT' | 'FAILED' | 'PARTIAL';
+          devices_targeted?: number;
+          devices_succeeded?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          user_id?: string | null;
+          notification_type?: string;
+          title?: string;
+          body?: string;
+          url?: string | null;
+          data?: Json | null;
+          status?: 'SENT' | 'FAILED' | 'PARTIAL';
+          devices_targeted?: number;
+          devices_succeeded?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'notification_logs_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'notification_logs_organization_id_fkey';
+            columns: ['organization_id'];
+            isOneToOne: false;
+            referencedRelation: 'organizations';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -755,6 +875,16 @@ export interface Database {
           locked_until?: string | null;
         };
       };
+      upsert_push_subscription: {
+        Args: {
+          p_endpoint: string;
+          p_p256dh: string;
+          p_auth: string;
+          p_user_agent?: string;
+          p_device_name?: string;
+        };
+        Returns: Json;
+      };
     };
     Enums: {
       user_role: UserRole;
@@ -778,6 +908,8 @@ export type Campaign = Database['public']['Tables']['campaigns']['Row'];
 export type LeadEvent = Database['public']['Tables']['lead_events']['Row'];
 export type CalculatorSession = Database['public']['Tables']['calculator_sessions']['Row'];
 export type LoanInterestRate = Database['public']['Tables']['loan_interest_rates']['Row'];
+export type PushSubscriptionRow = Database['public']['Tables']['push_subscriptions']['Row'];
+export type NotificationLogRow = Database['public']['Tables']['notification_logs']['Row'];
 
 // Convenience Insert Types
 export type LeadInsert = Database['public']['Tables']['leads']['Insert'];
@@ -789,5 +921,8 @@ export type InsuranceFollowUpInsert = Database['public']['Tables']['insurance_fo
 export type LeadEventInsert = Database['public']['Tables']['lead_events']['Insert'];
 export type CalculatorSessionInsert = Database['public']['Tables']['calculator_sessions']['Insert'];
 export type LoanInterestRateInsert = Database['public']['Tables']['loan_interest_rates']['Insert'];
+export type PushSubscriptionInsert = Database['public']['Tables']['push_subscriptions']['Insert'];
+export type NotificationLogInsert = Database['public']['Tables']['notification_logs']['Insert'];
+
 
 

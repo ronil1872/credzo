@@ -6,6 +6,7 @@ import { RelatedEnquiriesCard } from '../components/RelatedEnquiriesCard';
 import { DeleteLeadDialog } from '../components/DeleteLeadDialog';
 import { useAuth } from '../../../hooks';
 import { Lead, LeadStatus, LeadNote, FollowUp } from '../../../types/database';
+import { dispatchPushNotification, NotificationTemplates } from '../../../lib/pushNotifications';
 import '../crm.css';
 
 const LOAN_TYPE_LABELS: Record<string, string> = {
@@ -108,6 +109,7 @@ export const LeadDetailPage: React.FC = () => {
       .eq('id', id);
 
     if (!error) {
+      const oldStatus = lead.status;
       setLead(prev => prev ? {
         ...prev, status: selectedStatus,
         requested_amount: Number(requestedAmt) || prev.requested_amount,
@@ -115,6 +117,21 @@ export const LeadDetailPage: React.FC = () => {
         disbursed_amount: Number(disbursedAmt) || 0,
       } : prev);
       setSaveMsg('Changes saved.');
+
+      // Real Push Notification Dispatch if status changed
+      if (oldStatus !== selectedStatus) {
+        const notifPayload =
+          selectedStatus === 'DOCUMENTS'
+            ? NotificationTemplates.documentPending(lead.name, id)
+            : NotificationTemplates.applicationStatus(lead.name, selectedStatus, id);
+
+        dispatchPushNotification({
+          targetUserId: lead.assigned_to || undefined,
+          allOrganizationStaff: !lead.assigned_to,
+          organizationId: lead.organization_id,
+          notification: notifPayload,
+        }).catch((err) => console.warn('[Credzo Push] Status change notification notice:', err));
+      }
     } else {
       setSaveMsg('Error saving changes.');
     }
@@ -165,6 +182,13 @@ export const LeadDetailPage: React.FC = () => {
       ));
       setFuDate('');
       setFuNote('');
+
+      // Real Push Notification Dispatch for scheduled follow-up
+      dispatchPushNotification({
+        targetUserId: profile?.id,
+        organizationId: lead.organization_id,
+        notification: NotificationTemplates.followUpDue(lead.name, id, (data as FollowUp).id),
+      }).catch((err) => console.warn('[Credzo Push] Follow-up notification notice:', err));
     }
     setSavingFu(false);
   };
