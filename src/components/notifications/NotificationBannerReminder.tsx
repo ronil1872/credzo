@@ -30,17 +30,21 @@ export const NotificationBannerReminder: React.FC<NotificationBannerReminderProp
   const iosStatus = getIOSPushStatus();
 
   const handleEnableClick = async () => {
-    if (!user?.id || !profile?.organization_id) return;
     setLoading(true);
     setErrorMessage(null);
 
-    const res = await subscribeStaffToPush(user.id, profile.organization_id);
-    setLoading(false);
-
-    if (res.success) {
-      onRefreshStatus?.();
-    } else {
-      setErrorMessage(res.error || 'Failed to subscribe.');
+    try {
+      const res = await subscribeStaffToPush(user?.id, profile?.organization_id);
+      if (res.success) {
+        onRefreshStatus?.();
+      } else {
+        setErrorMessage(res.error || 'Failed to subscribe.');
+      }
+    } catch (err: unknown) {
+      console.error('[Push Debug] Banner enable error:', err);
+      setErrorMessage((err as Error)?.message || 'An error occurred while enabling notifications.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -101,7 +105,7 @@ export const NotificationBannerReminder: React.FC<NotificationBannerReminderProp
         onClick={handleEnableClick}
         disabled={loading}
       >
-        {loading ? 'Enabling...' : 'Enable'}
+        {loading ? 'Enabling...' : errorMessage ? '🔄 Try Again' : 'Enable'}
       </button>
     </div>
   );

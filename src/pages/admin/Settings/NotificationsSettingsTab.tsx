@@ -127,30 +127,34 @@ export const NotificationsSettingsTab: React.FC = () => {
 
   // Toggle current device push subscription
   const handleToggleDeviceSubscription = async () => {
-    if (!user?.id || !profile?.organization_id) return;
     clearMessages();
     setLoadingDevice(true);
 
-    if (isSubscribed) {
-      const res = await unsubscribeStaffFromPush(user.id);
-      setLoadingDevice(false);
-      if (res.success) {
-        setSuccessMsg('Push notifications have been disabled for this device.');
-        await refreshDeviceStatus();
-        if (isAdminOrOwner) fetchTeamStatus();
+    try {
+      if (isSubscribed) {
+        const res = await unsubscribeStaffFromPush(user?.id || '');
+        if (res.success) {
+          setSuccessMsg('Push notifications have been disabled for this device.');
+          await refreshDeviceStatus();
+          if (isAdminOrOwner) fetchTeamStatus();
+        } else {
+          setErrorMsg(res.error || 'Failed to disable notifications.');
+        }
       } else {
-        setErrorMsg(res.error || 'Failed to disable notifications.');
+        const res = await subscribeStaffToPush(user?.id, profile?.organization_id);
+        if (res.success) {
+          setSuccessMsg('🎉 Push notifications successfully enabled on this device!');
+          await refreshDeviceStatus();
+          if (isAdminOrOwner) fetchTeamStatus();
+        } else {
+          setErrorMsg(res.error || 'Failed to enable notifications.');
+        }
       }
-    } else {
-      const res = await subscribeStaffToPush(user.id, profile.organization_id);
+    } catch (err: unknown) {
+      console.error('[Push Debug] Settings toggle subscription error:', err);
+      setErrorMsg((err as Error)?.message || 'An error occurred while changing notification settings.');
+    } finally {
       setLoadingDevice(false);
-      if (res.success) {
-        setSuccessMsg('🎉 Push notifications successfully enabled on this device!');
-        await refreshDeviceStatus();
-        if (isAdminOrOwner) fetchTeamStatus();
-      } else {
-        setErrorMsg(res.error || 'Failed to enable notifications.');
-      }
     }
   };
 

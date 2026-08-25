@@ -16,43 +16,45 @@ export const NotificationPermissionModal: React.FC<NotificationPermissionModalPr
 }) => {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleEnable = async () => {
-    if (!user?.id || !profile?.organization_id) {
-      setErrorMessage('User session not found. Please log in again.');
-      return;
-    }
-
     setLoading(true);
     setErrorMessage(null);
 
-    const iosStatus = getIOSPushStatus();
-    if (iosStatus.isIOS && !iosStatus.isStandalone) {
-      setErrorMessage(
-        'On iPhone/iPad, please add Credzo CRM to your Home Screen first (Tap Share ⎋ -> Add to Home Screen).'
-      );
-      setLoading(false);
-      return;
-    }
+    try {
+      const iosStatus = getIOSPushStatus();
+      if (iosStatus.isIOS && !iosStatus.isStandalone) {
+        setErrorMessage(
+          'On iPhone/iPad, please add Credzo CRM to your Home Screen first (Tap Share ⎋ -> Add to Home Screen).'
+        );
+        return;
+      }
 
-    if (!isPushNotificationSupported()) {
-      setErrorMessage('Push notifications are not supported in this browser.');
-      setLoading(false);
-      return;
-    }
+      if (!isPushNotificationSupported()) {
+        setErrorMessage('Push notifications are not supported in this browser.');
+        return;
+      }
 
-    const result = await subscribeStaffToPush(user.id, profile.organization_id);
+      const result = await subscribeStaffToPush(user?.id, profile?.organization_id);
 
-    if (result.success) {
+      if (result.success) {
+        setIsSuccess(true);
+        setTimeout(() => {
+          onSubscribed?.();
+          onClose();
+        }, 900);
+      } else {
+        setErrorMessage(result.error || 'Failed to enable notifications. Please try again.');
+      }
+    } catch (err: unknown) {
+      console.error('[Push Debug] Modal handleEnable error:', err);
+      setErrorMessage((err as Error)?.message || 'An unexpected error occurred while enabling notifications.');
+    } finally {
       setLoading(false);
-      onSubscribed?.();
-      onClose();
-    } else {
-      setLoading(false);
-      setErrorMessage(result.error || 'Failed to enable notifications.');
     }
   };
 
@@ -108,27 +110,33 @@ export const NotificationPermissionModal: React.FC<NotificationPermissionModalPr
         <div className="notification-modal-actions">
           <button
             type="button"
-            className="notification-btn-enable"
+            className={`notification-btn-enable ${isSuccess ? 'btn-success' : ''}`}
             onClick={handleEnable}
-            disabled={loading}
+            disabled={loading || isSuccess}
           >
             {loading ? (
               <>
                 <span className="spinner-border" style={{ width: 14, height: 14, borderWidth: 2 }} />
                 <span>Enabling...</span>
               </>
+            ) : isSuccess ? (
+              '✅ Notifications Enabled!'
+            ) : errorMessage ? (
+              '🔄 Try Again'
             ) : (
               'Enable Notifications'
             )}
           </button>
-          <button
-            type="button"
-            className="notification-btn-dismiss"
-            onClick={handleDismiss}
-            disabled={loading}
-          >
-            Not Now
-          </button>
+          {!isSuccess && (
+            <button
+              type="button"
+              className="notification-btn-dismiss"
+              onClick={handleDismiss}
+              disabled={loading}
+            >
+              Not Now
+            </button>
+          )}
         </div>
       </div>
     </div>

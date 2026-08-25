@@ -18,6 +18,12 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // ==============================================================================
 // Push Event Handler
 // Triggered by browser when a Web Push payload arrives from push service (FCM/Mozilla/Apple)

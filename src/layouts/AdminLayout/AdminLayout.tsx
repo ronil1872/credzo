@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { ErrorBoundary } from '../../components/ErrorBoundary/ErrorBoundary';
 import {
   checkStaffPushSubscriptionStatus,
+  ensureActiveServiceWorker,
   NotificationPermissionState,
 } from '../../lib/pushNotifications';
 import {
@@ -47,11 +48,13 @@ export const AdminLayout: React.FC = () => {
     }
 
     try {
-      // 1. Ensure service worker is registered
+      // 1. Ensure service worker is registered and active
       if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' })
-          .then((reg) => console.info('[Credzo Push Debug] ✅ /sw.js active registration ready:', reg.scope))
-          .catch((swErr) => console.warn('[Credzo Push Debug] ⚠️ Service worker registration warning:', swErr));
+        ensureActiveServiceWorker()
+          .then((reg) => {
+            if (reg) console.info('[Push Debug] Service worker active registration ready:', reg.scope);
+          })
+          .catch((swErr) => console.warn('[Push Debug] Service worker registration warning:', swErr));
       }
 
       // 2. Query subscription and permission status

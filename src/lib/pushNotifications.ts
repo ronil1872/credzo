@@ -116,24 +116,113 @@ export function getFriendlyDeviceName(): string {
 }
 
 /**
- * Registers the Service Worker at `/sw.js`.
+ * Promise timeout utility to prevent hanging calls.
  */
-export async function registerPushServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+export function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  timeoutMsg = 'Operation timed out'
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`${timeoutMsg} (exceeded ${ms}ms)`));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timer);
+  });
+}
+
+/**
+ * Ensures the Service Worker at `/sw.js` is registered, active, and controlling the scope.
+ * Cleans up any stale or non-root duplicate registrations.
+ */
+export async function ensureActiveServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
-    console.warn('[Credzo Push Debug] Service Worker API not available.');
+    console.warn('[Push Debug] Service Worker API not available in window/navigator.');
     return null;
   }
 
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/',
+    // 1. Clean up stale/duplicate registrations outside scope '/'
+    try {
+      const allRegistrations = await navigator.serviceWorker.getRegistrations();
+      for (const reg of allRegistrations) {
+        const regUrl = new URL(reg.scope);
+        if (regUrl.pathname !== '/' && regUrl.origin === window.location.origin) {
+          console.info('[Push Debug] Unregistering non-root service worker:', reg.scope);
+          await reg.unregister().catch(() => {});
+        }
+      }
+    } catch (cleanErr) {
+      console.warn('[Push Debug] Stale registration cleanup notice:', cleanErr);
+    }
+
+    // 2. Register /sw.js with scope '/'
+    const registration = await withTimeout(
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }),
+      8000,
+      'Service worker registration timed out'
+    );
+
+    // 3. If a worker is waiting, post SKIP_WAITING to accelerate activation
+    if (registration.waiting) {
+      console.info('[Push Debug] Posting SKIP_WAITING to waiting worker');
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+
+    // 4. If registration.active is already activated, return immediately
+    if (registration.active && registration.active.state === 'activated') {
+      console.info('[Push Debug] Service Worker is already active and activated. Scope:', registration.scope);
+      return registration;
+    }
+
+    // 5. Otherwise wait for activation with timeout
+    const activationPromise = new Promise<ServiceWorkerRegistration>((resolve) => {
+      navigator.serviceWorker.ready
+        .then((readyReg) => resolve(readyReg))
+        .catch(() => {});
+
+      const targetWorker = registration.installing || registration.waiting || registration.active;
+      if (targetWorker) {
+        if (targetWorker.state === 'activated') {
+          resolve(registration);
+          return;
+        }
+        targetWorker.addEventListener('statechange', () => {
+          if (targetWorker.state === 'activated') {
+            resolve(registration);
+          }
+        });
+      }
     });
-    console.info('[Credzo Push Debug] Service Worker registered successfully. Scope:', registration.scope);
-    return registration;
+
+    const activeReg = await withTimeout(activationPromise, 6000, 'Service worker activation timed out');
+    console.info('[Push Debug] Service worker registration active and verified. Scope:', activeReg.scope);
+    return activeReg;
   } catch (error) {
-    console.error('[Credzo Push Debug] Service Worker registration error:', error);
+    console.error('[Push Debug] Service Worker registration / activation error:', error);
+    try {
+      const fallback = await withTimeout(
+        navigator.serviceWorker.getRegistration(),
+        3000,
+        'Fallback getRegistration timed out'
+      );
+      if (fallback) return fallback;
+    } catch {
+      // Ignore fallback error
+    }
     return null;
   }
+}
+
+/**
+ * Registers the Service Worker at `/sw.js` (alias to ensureActiveServiceWorker).
+ */
+export async function registerPushServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  return ensureActiveServiceWorker();
 }
 
 /**
@@ -142,12 +231,15 @@ export async function registerPushServiceWorker(): Promise<ServiceWorkerRegistra
 export async function getCurrentPushSubscription(): Promise<PushSubscription | null> {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return null;
   try {
-    // Use getRegistration() instead of ready to avoid hanging if SW is not active yet
     const registration = await navigator.serviceWorker.getRegistration();
     if (!registration || !('pushManager' in registration)) return null;
-    return await registration.pushManager.getSubscription();
+    return await withTimeout(
+      registration.pushManager.getSubscription(),
+      4000,
+      'PushManager getSubscription timed out'
+    );
   } catch (err) {
-    console.warn('[Credzo Push Debug] Error checking push subscription:', err);
+    console.warn('[Push Debug] Error checking push subscription:', err);
     return null;
   }
 }
@@ -176,9 +268,14 @@ export function getNotificationPermissionState(): NotificationPermissionState {
  * Saves the subscription to Supabase `push_subscriptions` table.
  */
 export async function subscribeStaffToPush(
-  userId: string,
-  organizationId: string
+  userId?: string,
+  organizationId?: string
 ): Promise<{ success: boolean; error?: string; subscription?: PushSubscription }> {
+  const startTime = Date.now();
+  console.log('[Push Debug] ========================================');
+  console.log('[Push Debug] Initiating Web Push subscription flow...');
+
+  // 0. Environment & Compatibility Checks
   if (!isPushNotificationSupported()) {
     const ios = getIOSPushStatus();
     if (ios.isIOS && !ios.isStandalone) {
@@ -188,50 +285,143 @@ export async function subscribeStaffToPush(
           'Apple iOS requires adding this app to your Home Screen before enabling notifications. Tap Share (⎋) -> Add to Home Screen.',
       };
     }
-    return { success: false, error: 'Web Push is not supported on this browser.' };
+    return { success: false, error: 'Web Push notifications are not supported on this browser.' };
   }
 
   if (!isSupabaseConfigured()) {
-    return { success: false, error: 'Supabase credentials are not configured.' };
+    return { success: false, error: 'Supabase backend credentials are not configured.' };
   }
 
   try {
-    // 1. Request native browser notification permission
-    const permission = await Notification.requestPermission();
+    // Step 1: Request native browser notification permission
+    console.log('[Push Debug] Permission request started');
+    let permission: NotificationPermission = Notification.permission;
+    if (permission !== 'granted') {
+      try {
+        permission = await withTimeout(
+          Notification.requestPermission(),
+          20000,
+          'Notification permission prompt timed out or was dismissed'
+        );
+      } catch (permErr: unknown) {
+        console.warn('[Push Debug] Permission request rejected or timed out:', permErr);
+        return {
+          success: false,
+          error: (permErr as Error)?.message || 'Notification permission request timed out.',
+        };
+      }
+    }
+    console.log('[Push Debug] Permission result:', permission);
+
     if (permission !== 'granted') {
       return {
         success: false,
         error:
           permission === 'denied'
-            ? 'Notifications were blocked in your browser. Please click the site settings/lock icon in your URL bar and allow notifications.'
+            ? 'Notifications were blocked in your browser. Please click the site settings/lock icon in your URL address bar and allow notifications.'
             : 'Notification permission was not granted.',
       };
     }
 
-    // 2. Register Service Worker
-    const registration = await registerPushServiceWorker();
+    // Step 2: Register & activate Service Worker
+    console.log('[Push Debug] Service worker registration');
+    const registration = await ensureActiveServiceWorker();
     if (!registration) {
-      return { success: false, error: 'Failed to initialize Service Worker.' };
+      return {
+        success: false,
+        error: 'Failed to register or activate the service worker. Please refresh the page and try again.',
+      };
     }
 
-    // 3. Subscribe with VAPID Application Server Key
+    if (!('pushManager' in registration)) {
+      return {
+        success: false,
+        error: 'PushManager API is not available on the active service worker registration.',
+      };
+    }
+
+    // Step 3: VAPID public key conversion
+    console.log('[Push Debug] VAPID conversion');
     const vapidKey = getVapidPublicKey();
+    if (!vapidKey) {
+      return { success: false, error: 'VAPID public key is missing from environment.' };
+    }
     const applicationServerKey = urlBase64ToUint8Array(vapidKey);
 
-    let pushSubscription = await registration.pushManager.getSubscription();
-    if (!pushSubscription) {
-      pushSubscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: applicationServerKey as unknown as BufferSource,
-      });
+    // Step 4: PushManager subscription
+    console.log('[Push Debug] PushManager subscription started');
+    let pushSubscription: PushSubscription | null = null;
+
+    try {
+      // Check existing subscription
+      const existingSub = await withTimeout(
+        registration.pushManager.getSubscription(),
+        5000,
+        'Checking existing subscription timed out'
+      );
+
+      if (existingSub) {
+        console.log('[Push Debug] Found existing push subscription. Checking validity...');
+        const existingKey = existingSub.getKey('p256dh');
+        if (existingKey) {
+          pushSubscription = existingSub;
+        } else {
+          console.warn('[Push Debug] Existing subscription missing keys. Resetting...');
+          await existingSub.unsubscribe().catch(() => {});
+        }
+      }
+    } catch (checkErr) {
+      console.warn('[Push Debug] Notice while checking existing subscription:', checkErr);
     }
 
-    // 4. Extract subscription keys
+    // If no valid existing subscription, subscribe fresh
+    if (!pushSubscription) {
+      try {
+        pushSubscription = await withTimeout(
+          registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: applicationServerKey as unknown as BufferSource,
+          }),
+          12000,
+          'PushManager subscription timed out waiting for browser push service'
+        );
+      } catch (subErr: unknown) {
+        console.warn('[Push Debug] Direct subscription attempt failed, attempting reset:', subErr);
+        try {
+          const oldSub = await registration.pushManager.getSubscription();
+          if (oldSub) {
+            await oldSub.unsubscribe().catch(() => {});
+          }
+          pushSubscription = await withTimeout(
+            registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: applicationServerKey as unknown as BufferSource,
+            }),
+            10000,
+            'PushManager re-subscription timed out'
+          );
+        } catch (retryErr: unknown) {
+          console.error('[Push Debug] PushManager subscribe failed after reset:', retryErr);
+          return {
+            success: false,
+            error:
+              (retryErr as Error)?.message ||
+              'Failed to generate browser push subscription with push service.',
+          };
+        }
+      }
+    }
+
+    if (!pushSubscription || !pushSubscription.endpoint) {
+      return { success: false, error: 'PushManager failed to return a valid subscription endpoint.' };
+    }
+
+    // Step 5: Extract subscription keys
     const rawP256dh = pushSubscription.getKey('p256dh');
     const rawAuth = pushSubscription.getKey('auth');
 
     if (!rawP256dh || !rawAuth) {
-      return { success: false, error: 'Failed to obtain cryptographic subscription keys.' };
+      return { success: false, error: 'Failed to extract cryptographic subscription keys from browser.' };
     }
 
     const p256dh = btoa(String.fromCharCode(...new Uint8Array(rawP256dh)))
@@ -247,34 +437,85 @@ export async function subscribeStaffToPush(
     const deviceName = getFriendlyDeviceName();
     const userAgent = navigator.userAgent;
 
-    // 5. Store / Upsert subscription in Supabase database
-    const { error: upsertError } = await supabase.from('push_subscriptions').upsert(
-      {
-        user_id: userId,
-        organization_id: organizationId,
-        endpoint: pushSubscription.endpoint,
-        p256dh,
-        auth,
-        device_name: deviceName,
-        user_agent: userAgent,
-        is_active: true,
-        last_used_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: 'user_id,endpoint',
+    // Step 6: Supabase session & user resolution
+    let effectiveUserId = userId;
+    let effectiveOrgId = organizationId;
+
+    if (!effectiveUserId || !effectiveOrgId) {
+      const sessionResult = await withTimeout(
+        supabase.auth.getSession(),
+        6000,
+        'Supabase getSession timed out'
+      );
+      const authUser = sessionResult.data?.session?.user;
+      if (!authUser) {
+        return { success: false, error: 'Authenticated user session not found. Please log in again.' };
       }
+      effectiveUserId = authUser.id;
+
+      if (!effectiveOrgId) {
+        const profileRes = await withTimeout(
+          Promise.resolve(
+            supabase.from('profiles').select('organization_id').eq('id', effectiveUserId).maybeSingle()
+          ),
+          6000,
+          'Supabase fetch profile organization timed out'
+        );
+        effectiveOrgId = profileRes.data?.organization_id;
+      }
+    }
+
+    if (!effectiveUserId || !effectiveOrgId) {
+      return { success: false, error: 'Organization ID not found for current user session.' };
+    }
+
+    console.log('[Push Debug] Supabase session found:', {
+      userId: effectiveUserId,
+      organizationId: effectiveOrgId,
+    });
+
+    // Step 7: Save / Upsert subscription in Supabase database
+    console.log('[Push Debug] Saving subscription');
+    const upsertRes = await withTimeout(
+      Promise.resolve(
+        supabase.from('push_subscriptions').upsert(
+          {
+            user_id: effectiveUserId,
+            organization_id: effectiveOrgId,
+            endpoint: pushSubscription.endpoint,
+            p256dh,
+            auth,
+            device_name: deviceName,
+            user_agent: userAgent,
+            is_active: true,
+            last_used_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          {
+            onConflict: 'user_id,endpoint',
+          }
+        )
+      ),
+      10000,
+      'Saving subscription to Supabase timed out'
     );
 
-    if (upsertError) {
-      console.error('[Credzo Push] Failed to save push subscription to DB:', upsertError);
-      return { success: false, error: `Failed to save subscription: ${upsertError.message}` };
+    if (upsertRes.error) {
+      console.error('[Push Debug] Failed to save push subscription to DB:', upsertRes.error);
+      return { success: false, error: `Database error: ${upsertRes.error.message}` };
     }
+
+    console.log('[Push Debug] Subscription saved');
+    const duration = Date.now() - startTime;
+    console.log(`[Push Debug] Enable flow completed in ${duration}ms`);
 
     return { success: true, subscription: pushSubscription };
   } catch (err: unknown) {
-    console.error('[Credzo Push] Unexpected subscription error:', err);
-    return { success: false, error: (err as Error)?.message || 'Failed to subscribe to push notifications.' };
+    console.error('[Push Debug] Unexpected error during push enablement:', err);
+    return {
+      success: false,
+      error: (err as Error)?.message || 'Failed to complete push notification setup.',
+    };
   }
 }
 
