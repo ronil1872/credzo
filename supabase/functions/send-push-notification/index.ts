@@ -451,61 +451,129 @@ serve(async (req: Request) => {
     }
 
     // =========================================================================
+    // Diagnostic Action: Inspect State
+    // =========================================================================
+    if (body.action === 'debug-inspect-state') {
+      const { data: subs } = await supabaseAdmin.from('push_subscriptions').select('*');
+      const { data: profiles } = await supabaseAdmin.from('profiles').select('id, email, full_name, role, organization_id, is_active');
+      const { data: orgs } = await supabaseAdmin.from('organizations').select('*');
+      const { data: logs } = await supabaseAdmin.from('notification_logs').select('*').order('created_at', { ascending: false }).limit(20);
+      const { data: leads } = await supabaseAdmin.from('leads').select('*').order('created_at', { ascending: false }).limit(10);
+
+      return new Response(
+        JSON.stringify({
+          subscriptions: subs || [],
+          profiles: profiles || [],
+          organizations: orgs || [],
+          logs: logs || [],
+          leads: leads || [],
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // =========================================================================
+    // Diagnostic Action: Direct Push to All Active Subscriptions
+    // =========================================================================
+    if (body.action === 'send-real-direct-push') {
+      const { data: subscriptions } = await supabaseAdmin
+        .from('push_subscriptions')
+        .select('*')
+        .eq('is_active', true);
+
+      console.log('[send-push-notification] Direct test push to active subs count:', subscriptions?.length || 0);
+
+      if (!subscriptions || subscriptions.length === 0) {
+        return new Response(
+          JSON.stringify({ success: false, message: 'No active push subscriptions found in database.', sent: 0 }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const notif = body.notification || {
+        title: '🔔 Direct Web Push Test',
+        body: 'Real-time Web Push notification successfully delivered to your device!',
+        type: 'TEST',
+        url: '/admin',
+        tag: `test-${Date.now()}`,
+      };
+
+      const result = await sendPushToSubscriptions(
+        supabaseAdmin,
+        subscriptions,
+        notif,
+        subscriptions[0].organization_id || '00000000-0000-0000-0000-000000000000',
+        subscriptions.map((s) => s.user_id),
+        callerUserId,
+        vapidPublicKey,
+        vapidPrivateKey,
+        vapidSubject
+      );
+
+      return new Response(
+        JSON.stringify({
+          success: result.successCount > 0,
+          delivered: result.successCount,
+          failed: result.failCount,
+          deactivated: result.deactivatedCount,
+          subscriptionsCount: subscriptions.length,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // =========================================================================
     // Scenario A: Public Lead Submission Event (Customer submits lead form)
     // =========================================================================
     if (body.event_type === 'PUBLIC_LEAD_SUBMISSION' || body.event === 'NEW_LEAD') {
+      console.log('[send-push-notification] Processing PUBLIC_LEAD_SUBMISSION event:', JSON.stringify(body.lead || {}));
       const lead = body.lead || {};
       const customerName = lead.name || lead.full_name || 'A customer';
       const amount = Number(lead.requested_amount) || 0;
-      const loanType = lead.loan_type || lead.insurance_type || 'loan';
+      const loanType = lead.loan_type || lead.insurance_type || 'Loan';
       const formattedAmt = formatCurrency(amount);
       const isHighValue = amount >= 5000000;
 
-      // Organization ID default
-      let targetOrgId = lead.organization_id || callerOrgId;
-      if (!targetOrgId) {
-        const { data: defaultOrg } = await supabaseAdmin
-          .from('organizations')
-          .select('id')
-          .limit(1)
-          .maybeSingle();
-        targetOrgId = defaultOrg?.id;
-      }
-
-      if (!targetOrgId) {
-        return new Response(JSON.stringify({ error: 'No organization found.' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      // Find staff in organization
-      const { data: staffMembers } = await supabaseAdmin
-        .from('profiles')
-        .select('id')
-        .eq('organization_id', targetOrgId)
-        .eq('is_active', true);
-
-      const targetUserIds = (staffMembers || []).map((s) => s.id);
-      if (targetUserIds.length === 0) {
-        return new Response(JSON.stringify({ message: 'No staff users found.', sent: 0 }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      const { data: subscriptions } = await supabaseAdmin
+      // Query all active subscriptions for staff (robust targeting across orgs)
+      let { data: subscriptions } = await supabaseAdmin
         .from('push_subscriptions')
-        .select('id, user_id, endpoint, p256dh, auth, device_name')
-        .in('user_id', targetUserIds)
+        .select('id, user_id, organization_id, endpoint, p256dh, auth, device_name')
         .eq('is_active', true);
+
+      console.log('[send-push-notification] Total active staff subscriptions found:', subscriptions?.length || 0);
 
       if (!subscriptions || subscriptions.length === 0) {
-        return new Response(JSON.stringify({ message: 'No active staff subscriptions.', sent: 0 }), {
+        // Log that a lead was created but no staff devices were registered yet
+        try {
+          const { data: defaultOrg } = await supabaseAdmin.from('organizations').select('id').limit(1).maybeSingle();
+          if (defaultOrg) {
+            await supabaseAdmin.from('notification_logs').insert({
+              organization_id: defaultOrg.id,
+              notification_type: isHighValue ? 'HIGH_VALUE_LEAD' : 'NEW_LEAD',
+              title: isHighValue ? '🔥 High-Value Lead' : '🔔 New Lead Received',
+              body: `${customerName} submitted a ${formattedAmt} enquiry (No active devices).`,
+              url: '/admin/leads',
+              status: 'SENT',
+              devices_targeted: 0,
+              devices_succeeded: 0,
+            });
+          }
+        } catch (_) {}
+
+        return new Response(JSON.stringify({ message: 'No active staff subscriptions found in DB.', sent: 0 }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+
+      // If lead specifies an organization, filter subscriptions for that org
+      if (lead.organization_id) {
+        const filtered = subscriptions.filter((s) => s.organization_id === lead.organization_id);
+        if (filtered.length > 0) subscriptions = filtered;
+      }
+
+      const targetOrgId = subscriptions[0]?.organization_id || '00000000-0000-0000-0000-000000000000';
+      const targetUserIds = [...new Set(subscriptions.map((s) => s.user_id))];
 
       const notification = isHighValue
         ? {
@@ -534,6 +602,8 @@ serve(async (req: Request) => {
         vapidPrivateKey,
         vapidSubject
       );
+
+      console.log('[send-push-notification] Public lead dispatch completed:', result);
 
       return new Response(
         JSON.stringify({
