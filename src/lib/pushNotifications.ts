@@ -92,6 +92,89 @@ export function getIOSPushStatus(): {
 }
 
 /**
+ * Detects detailed client browser, version, operating system, and capabilities.
+ */
+export interface DetailedClientEnvironment {
+  browser: 'Chrome' | 'Edge' | 'Brave' | 'Safari' | 'Firefox' | 'Opera' | 'Other';
+  browserVersion: string;
+  os: 'Windows' | 'macOS' | 'iOS' | 'iPadOS' | 'Android' | 'Linux' | 'Other';
+  isBrave: boolean;
+  isIOS: boolean;
+  isPWA: boolean;
+}
+
+export async function detectClientEnvironment(): Promise<DetailedClientEnvironment> {
+  if (typeof window === 'undefined') {
+    return {
+      browser: 'Other',
+      browserVersion: 'unknown',
+      os: 'Other',
+      isBrave: false,
+      isIOS: false,
+      isPWA: false,
+    };
+  }
+
+  const ua = navigator.userAgent;
+  let isBrave = false;
+  try {
+    const braveObj = (navigator as unknown as { brave?: { isBrave?: () => Promise<boolean> } }).brave;
+    if (braveObj && typeof braveObj.isBrave === 'function') {
+      isBrave = await braveObj.isBrave().catch(() => false);
+    }
+  } catch {
+    isBrave = false;
+  }
+
+  let browser: DetailedClientEnvironment['browser'] = 'Other';
+  let browserVersion = 'unknown';
+
+  if (isBrave) {
+    browser = 'Brave';
+    const match = ua.match(/(?:Chrome|Brave)\/([0-9.]+)/);
+    if (match) browserVersion = match[1];
+  } else if (ua.includes('Edg/')) {
+    browser = 'Edge';
+    const match = ua.match(/Edg\/([0-9.]+)/);
+    if (match) browserVersion = match[1];
+  } else if (ua.includes('OPR/') || ua.includes('Opera/')) {
+    browser = 'Opera';
+    const match = ua.match(/(?:OPR|Opera)\/([0-9.]+)/);
+    if (match) browserVersion = match[1];
+  } else if (ua.includes('Chrome/')) {
+    browser = 'Chrome';
+    const match = ua.match(/Chrome\/([0-9.]+)/);
+    if (match) browserVersion = match[1];
+  } else if (ua.includes('Safari/') && !ua.includes('Chrome/')) {
+    browser = 'Safari';
+    const match = ua.match(/Version\/([0-9.]+)/);
+    if (match) browserVersion = match[1];
+  } else if (ua.includes('Firefox/')) {
+    browser = 'Firefox';
+    const match = ua.match(/Firefox\/([0-9.]+)/);
+    if (match) browserVersion = match[1];
+  }
+
+  let os: DetailedClientEnvironment['os'] = 'Other';
+  const isIpadOs = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  if (/ipad/.test(ua.toLowerCase()) || isIpadOs) os = 'iPadOS';
+  else if (/iphone|ipod/.test(ua.toLowerCase())) os = 'iOS';
+  else if (ua.includes('Windows')) os = 'Windows';
+  else if (ua.includes('Macintosh') || ua.includes('Mac OS')) os = 'macOS';
+  else if (ua.includes('Android')) os = 'Android';
+  else if (ua.includes('Linux')) os = 'Linux';
+
+  return {
+    browser,
+    browserVersion,
+    os,
+    isBrave,
+    isIOS: os === 'iOS' || os === 'iPadOS',
+    isPWA: isPWAStandalone(),
+  };
+}
+
+/**
  * Returns a human-friendly device and browser description.
  */
 export function getFriendlyDeviceName(): string {
@@ -113,6 +196,140 @@ export function getFriendlyDeviceName(): string {
   else if (ua.includes('Linux')) os = 'Linux';
 
   return `${browser} on ${os}`;
+}
+
+export interface PushDiagnosticReport {
+  browser: string;
+  browserVersion: string;
+  os: string;
+  isBrave: boolean;
+  notificationSupported: boolean;
+  notificationPermission: NotificationPermissionState;
+  serviceWorkerSupported: boolean;
+  serviceWorkerActive: boolean;
+  serviceWorkerScope?: string;
+  serviceWorkerState?: string;
+  pushManagerSupported: boolean;
+  vapidKeyValid: boolean;
+  vapidKeyLength: number;
+  existingSubscriptionEndpoint?: string | null;
+  subscribeTestResult: 'SUCCESS' | 'FAILED' | 'SKIPPED';
+  exceptionName?: string;
+  exceptionMessage?: string;
+  remediationAdvice?: string;
+  timestamp: string;
+}
+
+/**
+ * Runs a comprehensive Web Push diagnostic check on the current browser/device.
+ */
+export async function runPushDiagnostics(): Promise<PushDiagnosticReport> {
+  const env = await detectClientEnvironment();
+  const notificationSupported = typeof window !== 'undefined' && 'Notification' in window;
+  const notificationPermission = getNotificationPermissionState();
+  const serviceWorkerSupported = typeof window !== 'undefined' && 'serviceWorker' in navigator;
+  const pushManagerSupported = typeof window !== 'undefined' && 'PushManager' in window;
+
+  const vapidKey = getVapidPublicKey();
+  let vapidKeyValid = false;
+  let vapidKeyLength = 0;
+  try {
+    const rawKey = urlBase64ToUint8Array(vapidKey);
+    vapidKeyLength = rawKey.byteLength;
+    vapidKeyValid = rawKey.byteLength === 65 && rawKey[0] === 0x04;
+  } catch {
+    vapidKeyValid = false;
+  }
+
+  let serviceWorkerActive = false;
+  let serviceWorkerScope: string | undefined;
+  let serviceWorkerState: string | undefined;
+  let existingEndpoint: string | null = null;
+  let subscribeTestResult: 'SUCCESS' | 'FAILED' | 'SKIPPED' = 'SKIPPED';
+  let exceptionName: string | undefined;
+  let exceptionMessage: string | undefined;
+  let remediationAdvice: string | undefined;
+
+  try {
+    if (serviceWorkerSupported) {
+      const reg = await ensureActiveServiceWorker();
+      if (reg) {
+        serviceWorkerScope = reg.scope;
+        const target = reg.active || reg.waiting || reg.installing;
+        serviceWorkerState = target?.state || 'unknown';
+        serviceWorkerActive = Boolean(reg.active && reg.active.state === 'activated');
+
+        if (reg.pushManager) {
+          const sub = await reg.pushManager.getSubscription().catch(() => null);
+          if (sub) {
+            existingEndpoint = sub.endpoint;
+          }
+
+          if (notificationPermission === 'granted' && vapidKeyValid) {
+            try {
+              const rawKey = urlBase64ToUint8Array(vapidKey);
+              const testSub = await reg.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: rawKey as unknown as BufferSource,
+              });
+              existingEndpoint = testSub.endpoint;
+              subscribeTestResult = 'SUCCESS';
+            } catch (subErr: unknown) {
+              const err = subErr as (Error & { code?: number });
+              subscribeTestResult = 'FAILED';
+              exceptionName = err.name || 'DOMException';
+              exceptionMessage = err.message || 'Push registration failed';
+            }
+          }
+        }
+      }
+    }
+  } catch (err: unknown) {
+    const errorObj = err as Error;
+    exceptionName = errorObj.name;
+    exceptionMessage = errorObj.message;
+  }
+
+  // Generate customized advice based on findings
+  if (env.isBrave && subscribeTestResult === 'FAILED') {
+    remediationAdvice =
+      'Brave disables Google Push Messaging by default. Go to brave://settings/privacy -> Enable "Use Google services for push messaging", restart Brave, and retry.';
+  } else if (env.os === 'Windows' && subscribeTestResult === 'FAILED') {
+    remediationAdvice =
+      'Windows Push Service error: Ensure Windows Notifications are enabled in Windows Settings -> System -> Notifications for ' +
+      env.browser +
+      '. Also verify firewall/VPN is not blocking FCM/WNS.';
+  } else if (env.isIOS && !env.isPWA) {
+    remediationAdvice =
+      'On iPhone/iPad, Web Push requires running from the Home Screen. Tap Share (⎋) -> "Add to Home Screen" and open from the icon.';
+  } else if (notificationPermission === 'denied') {
+    remediationAdvice =
+      'Notifications are blocked in this browser. Click the lock/tune icon in the address bar and set Notifications to "Allow".';
+  } else if (subscribeTestResult === 'SUCCESS') {
+    remediationAdvice = 'Web Push is fully operational and ready on this browser!';
+  }
+
+  return {
+    browser: env.browser,
+    browserVersion: env.browserVersion,
+    os: env.os,
+    isBrave: env.isBrave,
+    notificationSupported,
+    notificationPermission,
+    serviceWorkerSupported,
+    serviceWorkerActive,
+    serviceWorkerScope,
+    serviceWorkerState,
+    pushManagerSupported,
+    vapidKeyValid,
+    vapidKeyLength,
+    existingSubscriptionEndpoint: existingEndpoint,
+    subscribeTestResult,
+    exceptionName,
+    exceptionMessage,
+    remediationAdvice,
+    timestamp: new Date().toISOString(),
+  };
 }
 
 /**

@@ -11,6 +11,8 @@ import {
   NotificationTemplates,
   NotificationEventType,
   getIOSPushStatus,
+  runPushDiagnostics,
+  PushDiagnosticReport,
 } from '../../../lib/pushNotifications';
 import '../crm.css';
 
@@ -37,6 +39,10 @@ export const NotificationsSettingsTab: React.FC = () => {
   const deviceName = getFriendlyDeviceName();
   const iosStatus = getIOSPushStatus();
 
+  // Diagnostics State
+  const [diagnosticReport, setDiagnosticReport] = useState<PushDiagnosticReport | null>(null);
+  const [runningDiag, setRunningDiag] = useState<boolean>(false);
+
   // Team Status State
   const [teamMembers, setTeamMembers] = useState<TeamMemberNotificationStatus[]>([]);
   const [loadingTeam, setLoadingTeam] = useState<boolean>(false);
@@ -56,6 +62,19 @@ export const NotificationsSettingsTab: React.FC = () => {
   const clearMessages = () => {
     setSuccessMsg(null);
     setErrorMsg(null);
+  };
+
+  const handleRunDiagnostics = async () => {
+    setRunningDiag(true);
+    try {
+      const report = await runPushDiagnostics();
+      setDiagnosticReport(report);
+      await refreshDeviceStatus();
+    } catch (err: unknown) {
+      setErrorMsg((err as Error)?.message || 'Failed to run diagnostics.');
+    } finally {
+      setRunningDiag(false);
+    }
   };
 
   // 1. Refresh current device status
@@ -658,13 +677,28 @@ export const NotificationsSettingsTab: React.FC = () => {
         </div>
       </div>
 
-      {/* Section 4: System Architecture & Diagnostics */}
+      {/* Section 4: Web Push Diagnostics & Troubleshooting Suite */}
       <div className="crm-card">
         <div className="crm-card-header">
-          <span className="crm-card-title">⚙️ Web Push System Diagnostics</span>
+          <div>
+            <span className="crm-card-title">🔍 Comprehensive Web Push Diagnostics</span>
+            <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+              Inspect live browser engine, service worker state, VAPID key validity, and PushManager connectivity.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="crm-refresh-btn"
+            onClick={handleRunDiagnostics}
+            disabled={runningDiag}
+          >
+            {runningDiag ? 'Analyzing...' : 'Run Full Diagnostics'}
+          </button>
         </div>
+
         <div style={{ padding: 'var(--space-4) var(--space-5)' }}>
-          <div className="info-grid">
+          {/* Quick API Architecture Grid */}
+          <div className="info-grid" style={{ marginBottom: diagnosticReport ? 'var(--space-5)' : 0 }}>
             <div className="info-item">
               <span className="info-label">Service Worker API</span>
               <span className="info-value" style={{ color: 'var(--color-success)', fontWeight: 600 }}>
@@ -690,6 +724,100 @@ export const NotificationsSettingsTab: React.FC = () => {
               </span>
             </div>
           </div>
+
+          {/* Diagnostic Report Results Table */}
+          {diagnosticReport && (
+            <div
+              style={{
+                marginTop: 'var(--space-4)',
+                border: '1px solid var(--border-subtle, #e2e8f0)',
+                borderRadius: 'var(--radius-lg, 12px)',
+                background: 'var(--bg-surface-secondary, #f8fafc)',
+                padding: 'var(--space-4)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                  📊 Diagnostic Scan Results ({new Date(diagnosticReport.timestamp).toLocaleTimeString()})
+                </span>
+                <span
+                  className={`status-badge ${
+                    diagnosticReport.subscribeTestResult === 'SUCCESS' ? 'NEW' : 'LOST'
+                  }`}
+                >
+                  TEST: {diagnosticReport.subscribeTestResult}
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                <div style={{ fontSize: '0.85rem' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Browser: </span>
+                  <strong>{diagnosticReport.browser} ({diagnosticReport.browserVersion})</strong>
+                  {diagnosticReport.isBrave && <span style={{ color: '#ea580c', marginLeft: 4 }}>(Brave Shield Active)</span>}
+                </div>
+                <div style={{ fontSize: '0.85rem' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Operating System: </span>
+                  <strong>{diagnosticReport.os}</strong>
+                </div>
+                <div style={{ fontSize: '0.85rem' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Notification Permission: </span>
+                  <strong>{diagnosticReport.notificationPermission.toUpperCase()}</strong>
+                </div>
+                <div style={{ fontSize: '0.85rem' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>SW Active State: </span>
+                  <strong style={{ color: diagnosticReport.serviceWorkerActive ? '#059669' : '#d97706' }}>
+                    {diagnosticReport.serviceWorkerActive ? 'Activated & Ready' : (diagnosticReport.serviceWorkerState || 'Not Active')}
+                  </strong>
+                </div>
+                <div style={{ fontSize: '0.85rem' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>VAPID Key Length: </span>
+                  <strong>{diagnosticReport.vapidKeyLength} bytes ({diagnosticReport.vapidKeyValid ? 'Valid P-256 EC' : 'Invalid'})</strong>
+                </div>
+                <div style={{ fontSize: '0.85rem' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Push Registration: </span>
+                  <strong style={{ color: diagnosticReport.subscribeTestResult === 'SUCCESS' ? '#059669' : '#dc2626' }}>
+                    {diagnosticReport.subscribeTestResult}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Exception Details if failed */}
+              {diagnosticReport.exceptionMessage && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: '10px 14px',
+                    background: '#fef2f2',
+                    border: '1px solid #fecaca',
+                    borderRadius: 8,
+                    color: '#991b1b',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  <div><strong>Exception Name:</strong> {diagnosticReport.exceptionName}</div>
+                  <div><strong>Exception Message:</strong> {diagnosticReport.exceptionMessage}</div>
+                </div>
+              )}
+
+              {/* Remediation Advice */}
+              {diagnosticReport.remediationAdvice && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: '10px 14px',
+                    background: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    borderRadius: 8,
+                    color: '#1e40af',
+                    fontSize: '0.825rem',
+                  }}
+                >
+                  <strong>💡 Platform Guidance: </strong>
+                  {diagnosticReport.remediationAdvice}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
