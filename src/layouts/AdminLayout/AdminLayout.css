@@ -174,20 +174,31 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  width: 100%;
 }
 
 .admin-topbar {
-  height: var(--header-height);
+  min-height: var(--header-height, 64px);
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  justify-content: center;
   padding: 0 var(--space-6);
   position: sticky;
   top: 0;
   z-index: 50;
   box-sizing: border-box;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.admin-topbar-primary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--space-4);
+  min-width: 0;
 }
 
 .admin-topbar-left {
@@ -253,6 +264,15 @@
   flex-shrink: 0;
 }
 
+.admin-topbar-notif-desktop {
+  display: flex;
+  align-items: center;
+}
+
+.admin-topbar-mobile-notif-row {
+  display: none; /* Hidden on desktop & tablet */
+}
+
 .user-profile-info {
   display: flex;
   align-items: center;
@@ -307,6 +327,7 @@
   cursor: pointer;
   transition: all 0.15s ease;
   touch-action: manipulation;
+  white-space: nowrap;
 }
 
 .topbar-signout-btn:hover {
@@ -350,26 +371,90 @@
     display: flex;
   }
 
-  /* Responsive Topbar */
+  /* Two-Row Responsive Header */
   .admin-topbar {
-    padding: 0 var(--space-3);
+    height: auto;
+    min-height: unset;
+    padding: max(10px, env(safe-area-inset-top, 10px)) var(--space-3) var(--space-2) var(--space-3);
+    gap: 8px;
+  }
+
+  .admin-topbar-primary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
     gap: var(--space-2);
+  }
+
+  .admin-topbar-left {
+    gap: var(--space-2);
+    flex-shrink: 0;
   }
 
   .admin-hamburger-btn {
     display: flex;
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
   }
 
   .admin-topbar-mobile-brand {
     display: flex;
+    font-size: 0.9375rem;
+    font-weight: 800;
   }
 
   .admin-topbar-title {
     display: none;
   }
 
+  .admin-topbar-user {
+    gap: var(--space-2);
+    flex-shrink: 0;
+  }
+
+  /* Hide desktop notification pill from Row 1 */
+  .admin-topbar-notif-desktop {
+    display: none;
+  }
+
+  /* Hide long username on mobile so ADMIN badge & Sign Out fit with breathing room */
   .user-name {
-    max-width: 90px;
+    display: none;
+  }
+
+  .user-role-badge {
+    padding: 3px 8px;
+    font-size: 0.6875rem;
+  }
+
+  .topbar-signout-btn {
+    padding: 0 10px;
+    height: 34px;
+    min-height: 34px;
+    font-size: 0.75rem;
+  }
+
+  /* Dedicated Row 2 for Notification Status Pill */
+  .admin-topbar-mobile-notif-row {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    padding-bottom: 2px;
+  }
+
+  .admin-topbar-mobile-notif-row .notification-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    max-width: 100%;
+    white-space: nowrap;
   }
 
   .admin-main {
@@ -377,13 +462,9 @@
   }
 }
 
-@media (max-width: 480px) {
-  .user-profile-info {
-    gap: 4px;
-  }
-
-  .user-name {
-    display: none;
+@media (max-width: 360px) {
+  .admin-topbar-mobile-brand {
+    font-size: 0.875rem;
   }
 
   .topbar-signout-btn {

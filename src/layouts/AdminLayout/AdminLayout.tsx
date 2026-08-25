@@ -213,50 +213,62 @@ export const AdminLayout: React.FC = () => {
 
       <div className="admin-content-wrapper">
         <header className="admin-topbar" role="banner">
-          <div className="admin-topbar-left">
-            <button
-              type="button"
-              className="admin-hamburger-btn"
-              onClick={() => setIsDrawerOpen(true)}
-              aria-label="Open CRM Navigation Menu"
-              aria-expanded={isDrawerOpen}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
-            <Link to="/admin" className="admin-topbar-mobile-brand">
-              <span className="brand-primary">Credzo</span>
-              <span className="brand-accent">CRM</span>
-            </Link>
-            <div className="admin-topbar-title">
-              <span>Sales & Lead Management Portal</span>
+          <div className="admin-topbar-primary">
+            <div className="admin-topbar-left">
+              <button
+                type="button"
+                className="admin-hamburger-btn"
+                onClick={() => setIsDrawerOpen(true)}
+                aria-label="Open CRM Navigation Menu"
+                aria-expanded={isDrawerOpen}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+              <Link to="/admin" className="admin-topbar-mobile-brand">
+                <span className="brand-primary">Credzo</span>
+                <span className="brand-accent">CRM</span>
+              </Link>
+              <div className="admin-topbar-title">
+                <span>Sales & Lead Management Portal</span>
+              </div>
+            </div>
+
+            <div className="admin-topbar-user">
+              {/* Notification Status Indicator Pill (Desktop / Tablet view) */}
+              <div className="admin-topbar-notif-desktop">
+                <NotificationStatusIndicator
+                  permissionState={permissionState}
+                  isSubscribed={isSubscribed}
+                />
+              </div>
+
+              <div className="user-profile-info">
+                <span className="user-name">{displayName}</span>
+                <span className={`user-role-badge role-${roleName.toLowerCase()}`} aria-label={`Role: ${roleName}`}>
+                  {roleName}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="topbar-signout-btn"
+                onClick={handleSignOut}
+                aria-label="Sign out of CRM"
+              >
+                Sign Out
+              </button>
             </div>
           </div>
 
-          <div className="admin-topbar-user">
-            {/* Notification Status Indicator Pill */}
+          {/* Dedicated Mobile Notification Status Indicator (Row 2 on Mobile) */}
+          <div className="admin-topbar-mobile-notif-row">
             <NotificationStatusIndicator
               permissionState={permissionState}
               isSubscribed={isSubscribed}
             />
-
-            <div className="user-profile-info">
-              <span className="user-name">{displayName}</span>
-              <span className={`user-role-badge role-${roleName.toLowerCase()}`} aria-label={`Role: ${roleName}`}>
-                {roleName}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="topbar-signout-btn"
-              onClick={handleSignOut}
-              aria-label="Sign out of CRM"
-            >
-              Sign Out
-            </button>
           </div>
         </header>
 
