@@ -32,10 +32,16 @@ import { SettingsPage } from '../pages/admin/Settings/SettingsPage';
 import { InsuranceLeadsPage } from '../pages/admin/Insurance/InsuranceLeadsPage';
 import { InsuranceLeadDetailPage } from '../pages/admin/Insurance/InsuranceLeadDetailPage';
 
+// Isolated Internal Prototyping Test Lab
+import { TestIdeaPage } from '../pages/TestIdea/TestIdeaPage';
+
 export const AppRoutes: React.FC = () => {
   return (
     <AuthProvider>
       <Routes>
+        {/* Isolated Internal Prototyping Test Lab (Not linked, noindex) */}
+        <Route path="/test-idea/*" element={<TestIdeaPage />} />
+
         {/* Public Routes */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<LandingPage />} />
