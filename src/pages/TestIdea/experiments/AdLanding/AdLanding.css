@@ -1,0 +1,364 @@
+/* Scoped CSS for Ad Landing Page Experiment */
+.ad-landing-container {
+  max-width: 680px;
+  margin: 0 auto;
+  font-family: inherit;
+  color: #0f172a;
+}
+
+/* Distraction-Free Header (No full site navigation) */
+.ad-landing-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.ad-landing-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.ad-landing-title {
+  font-size: clamp(1.875rem, 5vw, 2.5rem);
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+.ad-landing-subtitle {
+  font-size: 1.0625rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+/* Quiz Card Container */
+.ad-landing-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.06), 0 8px 10px -6px rgba(0, 0, 0, 0.03);
+}
+
+/* Step Indicator */
+.ad-landing-progress-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.ad-progress-step {
+  flex: 1;
+  height: 6px;
+  border-radius: 9999px;
+  background: #e2e8f0;
+  transition: background 0.2s ease;
+}
+
+.ad-progress-step.active {
+  background: #2563eb;
+}
+
+.ad-progress-step.completed {
+  background: #10b981;
+}
+
+/* Step Question Header */
+.ad-question-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.ad-question-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 20px;
+}
+
+/* Radio Cards Selection (e.g. Employment type) */
+.ad-options-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.ad-option-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ad-option-card:hover {
+  border-color: #93c5fd;
+  background: #f8fafc;
+}
+
+.ad-option-card.selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.ad-option-icon {
+  font-size: 1.5rem;
+}
+
+.ad-option-text {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Range & Numeric Inputs */
+.ad-input-group {
+  margin-bottom: 24px;
+}
+
+.ad-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ad-input-prefix {
+  position: absolute;
+  left: 14px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.ad-input-suffix {
+  position: absolute;
+  right: 14px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.ad-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
+  background: #ffffff;
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+}
+
+.ad-input.has-prefix {
+  padding-left: 36px;
+}
+
+.ad-input.has-suffix {
+  padding-right: 54px;
+}
+
+.ad-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.ad-preset-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.ad-preset-pill {
+  padding: 5px 12px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.ad-preset-pill:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* Nav Actions */
+.ad-nav-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.ad-btn-back {
+  padding: 11px 18px;
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ad-btn-back:hover {
+  background: #f1f5f9;
+}
+
+.ad-btn-next {
+  flex: 1;
+  padding: 12px 24px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: center;
+}
+
+.ad-btn-next:hover {
+  background: #1d4ed8;
+}
+
+/* Results & Lead Form */
+.ad-result-view {
+  text-align: center;
+}
+
+.ad-eligibility-highlight-box {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+  color: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.ad-eligibility-label {
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.ad-eligibility-range {
+  font-size: 2.25rem;
+  font-weight: 800;
+  margin-bottom: 6px;
+  line-height: 1.1;
+}
+
+.ad-eligibility-note {
+  font-size: 0.8125rem;
+  opacity: 0.9;
+}
+
+.ad-lead-section {
+  text-align: left;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.ad-lead-title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.ad-lead-desc {
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin-bottom: 16px;
+}
+
+.ad-lead-input-group {
+  margin-bottom: 14px;
+}
+
+.ad-lead-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 4px;
+}
+
+.ad-lead-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  background: #ffffff;
+  color: #0f172a;
+  box-sizing: border-box;
+}
+
+.ad-lead-input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+.ad-lead-submit-btn {
+  width: 100%;
+  padding: 14px;
+  background: #10b981;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ad-lead-submit-btn:hover {
+  background: #059669;
+}
+
+.ad-trust-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+  font-size: 0.75rem;
+  color: #64748b;
+  flex-wrap: wrap;
+}

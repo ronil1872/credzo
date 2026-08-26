@@ -1,0 +1,304 @@
+/* Scoped CSS for Education Loan Calculator Experiment */
+.edu-loan-container {
+  max-width: 980px;
+  margin: 0 auto;
+  font-family: inherit;
+}
+
+.edu-loan-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.edu-loan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.edu-loan-title {
+  font-size: clamp(1.625rem, 4vw, 2.25rem);
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 8px;
+  line-height: 1.25;
+}
+
+.edu-loan-subtitle {
+  font-size: 1rem;
+  color: #64748b;
+  max-width: 580px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Quick Filter Pills (SEO template simulation) */
+.edu-loan-seo-pills {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.edu-loan-seo-pill {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.edu-loan-seo-pill:hover,
+.edu-loan-seo-pill.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.edu-loan-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+@media (min-width: 860px) {
+  .edu-loan-grid {
+    grid-template-columns: 1.15fr 1fr;
+  }
+}
+
+.edu-loan-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.edu-loan-card-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edu-loan-form-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 520px) {
+  .edu-loan-form-row.two-col {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.edu-loan-form-group {
+  margin-bottom: 16px;
+}
+
+.edu-loan-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 6px;
+}
+
+.edu-loan-input,
+.edu-loan-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: #0f172a;
+  background: #ffffff;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.edu-loan-input:focus,
+.edu-loan-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.edu-loan-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.edu-loan-input-prefix {
+  position: absolute;
+  left: 14px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.edu-loan-input.has-prefix {
+  padding-left: 32px;
+}
+
+/* Result Card */
+.edu-loan-result-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.edu-loan-requirement-box {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%);
+  color: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.edu-loan-requirement-label {
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.edu-loan-requirement-amount {
+  font-size: 2.125rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+/* Breakdown Breakdown */
+.edu-loan-breakdown-list {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.edu-loan-breakdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 0.875rem;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.edu-loan-breakdown-item:last-child {
+  border-bottom: none;
+  font-weight: 700;
+  color: #0f172a;
+  padding-top: 12px;
+  font-size: 0.9375rem;
+}
+
+.edu-loan-item-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+}
+
+.edu-loan-item-tag.deduct {
+  color: #16a34a;
+}
+
+.edu-loan-item-val {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.edu-loan-item-val.deduct {
+  color: #16a34a;
+}
+
+/* Visual Proportion Bar */
+.edu-loan-bar-wrap {
+  margin-bottom: 20px;
+}
+
+.edu-loan-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.edu-loan-progress-bar {
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 9999px;
+  display: flex;
+  overflow: hidden;
+}
+
+.edu-loan-progress-segment {
+  height: 100%;
+}
+
+.edu-loan-progress-segment.tuition {
+  background: #2563eb;
+}
+
+.edu-loan-progress-segment.living {
+  background: #38bdf8;
+}
+
+.edu-loan-progress-segment.funded {
+  background: #22c55e;
+}
+
+.edu-loan-cta-btn {
+  width: 100%;
+  padding: 13px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  text-align: center;
+}
+
+.edu-loan-cta-btn:hover {
+  background: #1d4ed8;
+}

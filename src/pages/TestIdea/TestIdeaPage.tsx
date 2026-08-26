@@ -6,51 +6,51 @@ import { TestLabHeader } from './components/TestLabHeader';
 import { ExperimentCard } from './components/ExperimentCard';
 
 // Isolated Experiment Components
-import { LoanEligibilityExperiment } from './experiments/LoanEligibility/LoanEligibilityExperiment';
-import { LoanAffordabilityExperiment } from './experiments/LoanAffordability/LoanAffordabilityExperiment';
+import { LowestEMIExperiment } from './experiments/LowestEMI/LowestEMIExperiment';
 import { EducationLoanExperiment } from './experiments/EducationLoan/EducationLoanExperiment';
-import { LoanComparisonExperiment } from './experiments/LoanComparison/LoanComparisonExperiment';
+import { LocationLandingExperiment } from './experiments/LocationLanding/LocationLandingExperiment';
+import { AdLandingExperiment } from './experiments/AdLanding/AdLandingExperiment';
 
 const EXPERIMENTS: ExperimentMetadata[] = [
   {
-    id: 'loan-eligibility',
-    title: 'Home Loan Eligibility',
-    category: 'Calculators',
-    icon: '🏠',
-    description: 'Multi-step borrowing power estimator evaluating applicant income, debt obligations, and bank eligibility rules.',
-    status: 'Scaffolded',
-    estimatedEffort: 'Phase 1',
-    tags: ['HomeLoan', 'FOIR', 'Eligibility'],
-  },
-  {
-    id: 'loan-affordability',
-    title: 'Loan Affordability',
-    category: 'Budgeting',
+    id: 'lowest-emi',
+    title: 'Lowest EMI Challenge',
+    category: 'Refinance & Savings',
     icon: '💰',
-    description: 'Disposable income & debt-to-income (DTI) analyzer calculating safe, sustainable monthly EMI limits.',
-    status: 'Scaffolded',
+    description: 'Compare existing home loan interest rate and EMI to compute estimated potential monthly & annual refinancing savings.',
+    status: 'In Prototyping',
     estimatedEffort: 'Phase 1',
-    tags: ['Affordability', 'DTI', 'Budgeting'],
+    tags: ['BalanceTransfer', 'Savings', 'Refinancing'],
   },
   {
     id: 'education-loan',
-    title: 'Education Loan Planner',
-    category: 'Education',
+    title: 'Education Loan Calculator',
+    category: 'Higher Education',
     icon: '🎓',
-    description: 'Specialized student loan modeling with moratorium grace periods, foreign exchange rates, and repayment schedules.',
-    status: 'Scaffolded',
+    description: 'Calculate net funding requirement across tuition fees, overseas living costs, and scholarships with course moratorium guidance.',
+    status: 'In Prototyping',
     estimatedEffort: 'Phase 1',
-    tags: ['StudyAbroad', 'Moratorium', 'StudentFinance'],
+    tags: ['StudyAbroad', 'StudentLoan', 'University'],
   },
   {
-    id: 'loan-comparison',
-    title: 'Loan Comparison',
-    category: 'Comparison',
-    icon: '🏦',
-    description: 'Side-by-side bank offer comparator analyzing interest rates, processing fees, APR, and total net loan cost.',
-    status: 'Scaffolded',
+    id: 'location-landing',
+    title: 'Home Loan in Ahmedabad',
+    category: 'Local SEO Landing',
+    icon: '📍',
+    description: 'Hyper-localized landing page featuring Gujarat stamp duty insights, AUDA/AMC regulations, local property EMIs, and local FAQs.',
+    status: 'In Prototyping',
     estimatedEffort: 'Phase 1',
-    tags: ['Comparison', 'BankOffers', 'APR'],
+    tags: ['Ahmedabad', 'CityLanding', 'GujaratRERA'],
+  },
+  {
+    id: 'ad-landing',
+    title: 'Home Loan Ad Landing Page',
+    category: 'Paid Media Ads',
+    icon: '📣',
+    description: 'High-conversion, distraction-free 5-step eligibility quiz tailored for Instagram & Google Ads campaigns.',
+    status: 'In Prototyping',
+    estimatedEffort: 'Phase 1',
+    tags: ['PaidAds', 'HighConversion', 'LeadFunnel'],
   },
 ];
 
@@ -160,10 +160,10 @@ export const TestIdeaPage: React.FC = () => {
             </div>
 
             {/* Render Isolated Experiment Component */}
-            {activeExperimentId === 'loan-eligibility' && <LoanEligibilityExperiment />}
-            {activeExperimentId === 'loan-affordability' && <LoanAffordabilityExperiment />}
+            {activeExperimentId === 'lowest-emi' && <LowestEMIExperiment />}
             {activeExperimentId === 'education-loan' && <EducationLoanExperiment />}
-            {activeExperimentId === 'loan-comparison' && <LoanComparisonExperiment />}
+            {activeExperimentId === 'location-landing' && <LocationLandingExperiment />}
+            {activeExperimentId === 'ad-landing' && <AdLandingExperiment />}
           </div>
         ) : (
           /* Dashboard Hub View */

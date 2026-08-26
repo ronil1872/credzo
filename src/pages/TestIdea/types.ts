@@ -1,8 +1,8 @@
 export type ExperimentId = 
-  | 'loan-eligibility'
-  | 'loan-affordability'
+  | 'lowest-emi'
   | 'education-loan'
-  | 'loan-comparison';
+  | 'location-landing'
+  | 'ad-landing';
 
 export type ExperimentStatus = 'Scaffolded' | 'In Prototyping' | 'Review Ready' | 'Archived';
 
