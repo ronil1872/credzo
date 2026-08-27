@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../lib/supabase';
+import { useAuth } from '../../../hooks';
 import { Profile } from '../../../types';
 import '../crm.css';
 
@@ -18,6 +19,7 @@ export const DeleteTeamMemberDialog: React.FC<DeleteTeamMemberDialogProps> = ({
   assignedLeadsCount = 0,
   onUserDeleted,
 }) => {
+  const { user } = useAuth();
   const [confirmInput, setConfirmInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -31,10 +33,16 @@ export const DeleteTeamMemberDialog: React.FC<DeleteTeamMemberDialogProps> = ({
   if (!isOpen || !targetProfile) return null;
 
   const isOwner = targetProfile.role === 'OWNER';
+  const isSelf = user?.id === targetProfile.id;
   const isDeleteConfirmed = confirmInput.trim() === 'DELETE';
 
   const handleDelete = async () => {
     if (!isDeleteConfirmed || isOwner) return;
+
+    if (isSelf) {
+      setErrorMsg('Security Restriction: You cannot delete your own account.');
+      return;
+    }
 
     setLoading(true);
     setErrorMsg(null);
