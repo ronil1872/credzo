@@ -118,6 +118,23 @@ export const TeamManagementTab: React.FC = () => {
     setTimeout(() => setSuccessMsg(null), 4000);
   };
 
+  // Handle Status Changed
+  const handleUserStatusChanged = (updatedProfile: Profile) => {
+    setTeamMembers((prev) =>
+      prev.map((m) =>
+        m.id === updatedProfile.id
+          ? {
+              ...m,
+              ...updatedProfile,
+            }
+          : m
+      )
+    );
+    const statusText = updatedProfile.is_active !== false ? 'activated' : 'deactivated';
+    setSuccessMsg(`Account for ${updatedProfile.full_name} was ${statusText} successfully.`);
+    setTimeout(() => setSuccessMsg(null), 4000);
+  };
+
   // Handle Deleted User
   const handleUserDeleted = (deletedUserId: string) => {
     setTeamMembers((prev) => prev.filter((m) => m.id !== deletedUserId));
@@ -666,7 +683,7 @@ export const TeamManagementTab: React.FC = () => {
         isOpen={Boolean(statusDialogProfile)}
         onClose={() => setStatusDialogProfile(null)}
         targetProfile={statusDialogProfile}
-        onStatusChanged={handleUserUpdated}
+        onStatusChanged={handleUserStatusChanged}
       />
 
       <DeleteTeamMemberDialog
