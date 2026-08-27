@@ -121,7 +121,7 @@ export const TeamManagementTab: React.FC = () => {
   // Handle Deleted User
   const handleUserDeleted = (deletedUserId: string) => {
     setTeamMembers((prev) => prev.filter((m) => m.id !== deletedUserId));
-    setSuccessMsg('Team member was permanently removed.');
+    setSuccessMsg('User deleted successfully.');
     setTimeout(() => setSuccessMsg(null), 4000);
   };
 

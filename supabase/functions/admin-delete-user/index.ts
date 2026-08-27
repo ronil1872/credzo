@@ -229,7 +229,14 @@ serve(async (req: Request) => {
     }
 
     // If profile record still exists (in case cascade did not fire immediately), remove it explicitly
-    await supabaseAdmin.from('profiles').delete().eq('id', trimmedTargetId).catch(() => null);
+    const { error: profileDeleteErr } = await supabaseAdmin
+      .from('profiles')
+      .delete()
+      .eq('id', trimmedTargetId);
+
+    if (profileDeleteErr) {
+      console.warn('[admin-delete-user] Residual profile delete notice:', profileDeleteErr.message);
+    }
 
     console.log(`[admin-delete-user] User deleted successfully: target_id=${trimmedTargetId}`);
 
