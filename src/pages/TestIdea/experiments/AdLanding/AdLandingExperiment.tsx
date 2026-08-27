@@ -14,6 +14,7 @@ export const AdLandingExperiment: React.FC = () => {
   // Lead capture state
   const [leadName, setLeadName] = useState<string>('');
   const [leadPhone, setLeadPhone] = useState<string>('');
+  const [leadCity, setLeadCity] = useState<string>(''); // Completely blank initial value
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
   // Estimated Eligibility calculation (standard FOIR 50-60%)
@@ -370,7 +371,7 @@ export const AdLandingExperiment: React.FC = () => {
               <div className="ad-lead-section">
                 <h3 className="ad-lead-title">Want us to check suitable loan options for you?</h3>
                 <p className="ad-lead-desc">
-                  Compare rates from 15+ banks. Free expert guidance with no spam calls.
+                  Understand suitable loan options based on your needs. Free expert guidance with no spam calls.
                 </p>
 
                 <form onSubmit={handleMockLeadSubmit}>
@@ -382,7 +383,7 @@ export const AdLandingExperiment: React.FC = () => {
                       className="ad-lead-input"
                       value={leadName}
                       onChange={(e) => setLeadName(e.target.value)}
-                      placeholder="e.g. Ramesh Varma"
+                      placeholder="Your Name"
                       required
                     />
                   </div>
@@ -398,6 +399,18 @@ export const AdLandingExperiment: React.FC = () => {
                       placeholder="9876543210"
                       maxLength={10}
                       required
+                    />
+                  </div>
+
+                  <div className="ad-lead-input-group">
+                    <label htmlFor="adLeadCity" className="ad-lead-label">City</label>
+                    <input
+                      id="adLeadCity"
+                      type="text"
+                      className="ad-lead-input"
+                      value={leadCity}
+                      onChange={(e) => setLeadCity(e.target.value)}
+                      placeholder="Your City"
                     />
                   </div>
 

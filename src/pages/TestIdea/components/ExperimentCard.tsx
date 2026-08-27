@@ -16,19 +16,26 @@ export const ExperimentCard: React.FC<ExperimentCardProps> = ({
         return 'scaffolded';
       case 'In Prototyping':
         return 'in-prototyping';
+      case 'Review Ready':
+        return 'review-ready';
       default:
         return 'scaffolded';
     }
   };
 
   return (
-    <div className="experiment-card">
+    <div className={`experiment-card ${experiment.isPrimary ? 'experiment-card-flagship' : ''}`}>
       <div>
         <div className="experiment-card-top">
           <div className="experiment-card-icon">{experiment.icon}</div>
-          <span className={`experiment-status-badge ${getStatusClass(experiment.status)}`}>
-            {experiment.status}
-          </span>
+          <div className="experiment-card-badges">
+            {experiment.isPrimary && (
+              <span className="experiment-flagship-badge">★ Flagship Prototype</span>
+            )}
+            <span className={`experiment-status-badge ${getStatusClass(experiment.status)}`}>
+              {experiment.status}
+            </span>
+          </div>
         </div>
 
         <h3 className="experiment-card-title">{experiment.title}</h3>
@@ -45,10 +52,10 @@ export const ExperimentCard: React.FC<ExperimentCardProps> = ({
 
       <button
         type="button"
-        className="experiment-card-action"
+        className={`experiment-card-action ${experiment.isPrimary ? 'action-flagship' : ''}`}
         onClick={() => onLaunch(experiment.id)}
       >
-        Open Experiment &rarr;
+        {experiment.isPrimary ? 'Open Full Homepage →' : 'Open Experiment →'}
       </button>
     </div>
   );

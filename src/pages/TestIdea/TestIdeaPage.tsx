@@ -6,12 +6,24 @@ import { TestLabHeader } from './components/TestLabHeader';
 import { ExperimentCard } from './components/ExperimentCard';
 
 // Isolated Experiment Components
+import { CustomerHomepage } from './homepage/CustomerHomepage';
 import { LowestEMIExperiment } from './experiments/LowestEMI/LowestEMIExperiment';
 import { EducationLoanExperiment } from './experiments/EducationLoan/EducationLoanExperiment';
 import { LocationLandingExperiment } from './experiments/LocationLanding/LocationLandingExperiment';
 import { AdLandingExperiment } from './experiments/AdLanding/AdLandingExperiment';
 
 const EXPERIMENTS: ExperimentMetadata[] = [
+  {
+    id: 'customer-homepage',
+    title: 'Customer Homepage Prototype',
+    category: 'Flagship Experience',
+    icon: '🌟',
+    description: 'High-converting, lead-first public customer homepage prototype combining simplified loan advisory, instant 5-step eligibility flow, localized property guide, and secondary savings calculators.',
+    status: 'Review Ready',
+    estimatedEffort: 'Flagship',
+    tags: ['LeadFirst', 'FullHomepage', 'MobileFirst', 'Prototype'],
+    isPrimary: true,
+  },
   {
     id: 'lowest-emi',
     title: 'Lowest EMI Challenge',
@@ -34,13 +46,13 @@ const EXPERIMENTS: ExperimentMetadata[] = [
   },
   {
     id: 'location-landing',
-    title: 'Home Loan in Ahmedabad',
+    title: 'Location-Based Home Loan',
     category: 'Local SEO Landing',
     icon: '📍',
-    description: 'Hyper-localized landing page featuring Gujarat stamp duty insights, AUDA/AMC regulations, local property EMIs, and local FAQs.',
+    description: 'Localized landing page prototype featuring property insights, municipal guidelines, local property EMIs, and borrower FAQs.',
     status: 'In Prototyping',
     estimatedEffort: 'Phase 1',
-    tags: ['Ahmedabad', 'CityLanding', 'GujaratRERA'],
+    tags: ['Location', 'CityLanding', 'HomeLoan'],
   },
   {
     id: 'ad-landing',
@@ -118,6 +130,8 @@ export const TestIdeaPage: React.FC = () => {
   }
 
   const activeExperiment = EXPERIMENTS.find((e) => e.id === activeExperimentId);
+  const primaryExperiment = EXPERIMENTS.find((e) => e.isPrimary);
+  const subExperiments = EXPERIMENTS.filter((e) => !e.isPrimary);
 
   return (
     <div className="test-lab-root">
@@ -150,16 +164,28 @@ export const TestIdeaPage: React.FC = () => {
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="test-lab-btn test-lab-btn-outline"
-                onClick={handleBackToLab}
-              >
-                &larr; Back to Test Lab
-              </button>
+              <div className="experiment-view-actions">
+                {activeExperimentId !== 'customer-homepage' && (
+                  <button
+                    type="button"
+                    className="test-lab-btn test-lab-btn-primary"
+                    onClick={() => setActiveExperimentId('customer-homepage')}
+                  >
+                    View Full Homepage Prototype &rarr;
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="test-lab-btn test-lab-btn-outline"
+                  onClick={handleBackToLab}
+                >
+                  &larr; Back to Test Lab Hub
+                </button>
+              </div>
             </div>
 
             {/* Render Isolated Experiment Component */}
+            {activeExperimentId === 'customer-homepage' && <CustomerHomepage />}
             {activeExperimentId === 'lowest-emi' && <LowestEMIExperiment />}
             {activeExperimentId === 'education-loan' && <EducationLoanExperiment />}
             {activeExperimentId === 'location-landing' && <LocationLandingExperiment />}
@@ -187,13 +213,43 @@ export const TestIdeaPage: React.FC = () => {
               </button>
             </div>
 
+            {/* Featured Flagship Prototype Banner */}
+            {primaryExperiment && (
+              <div className="test-lab-flagship-card">
+                <div className="flagship-card-left">
+                  <div className="flagship-badge-row">
+                    <span className="flagship-badge">★ MAIN PROTOTYPE</span>
+                    <span className="flagship-status-badge">{primaryExperiment.status}</span>
+                  </div>
+                  <h2 className="flagship-title">{primaryExperiment.title}</h2>
+                  <p className="flagship-desc">{primaryExperiment.description}</p>
+                  <div className="flagship-tags">
+                    {primaryExperiment.tags.map((tag) => (
+                      <span key={tag} className="experiment-tag">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flagship-card-right">
+                  <button
+                    type="button"
+                    className="test-lab-btn test-lab-btn-primary flagship-cta-btn"
+                    onClick={() => setActiveExperimentId(primaryExperiment.id)}
+                  >
+                    Open Full Homepage &rarr;
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="test-lab-grid-header">
-              <h2 className="test-lab-grid-title">Available Experiments</h2>
-              <span className="test-lab-grid-count">{EXPERIMENTS.length} Total Experiments</span>
+              <h2 className="test-lab-grid-title">Focused Sub-Experiments</h2>
+              <span className="test-lab-grid-count">{subExperiments.length} Available Tools</span>
             </div>
 
             <div className="test-lab-grid">
-              {EXPERIMENTS.map((experiment) => (
+              {subExperiments.map((experiment) => (
                 <ExperimentCard
                   key={experiment.id}
                   experiment={experiment}

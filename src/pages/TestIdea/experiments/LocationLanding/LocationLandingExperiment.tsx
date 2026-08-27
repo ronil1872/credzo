@@ -2,16 +2,12 @@ import React, { useState } from 'react';
 import './LocationLanding.css';
 
 export interface LocationLandingConfig {
-  cityName: string;
-  stateName: string;
   tagline: string;
   heroHighlight: string;
   lowestRate: string;
   stampDutyNote: string;
   regulatoryAuthority: string;
-  topCorridors: string[];
   propertyPresets: {
-    locality: string;
     propertyType: string;
     price: number;
     typicalLoan: number;
@@ -27,33 +23,27 @@ export interface LocationLandingConfig {
   }[];
 }
 
-const AHMEDABAD_CONFIG: LocationLandingConfig = {
-  cityName: 'Ahmedabad',
-  stateName: 'Gujarat',
-  tagline: 'Lowest Interest Rates on Home Loans in Ahmedabad & GIFT City Corridor',
+const GENERIC_LOCATION_CONFIG: LocationLandingConfig = {
+  tagline: 'Looking for a Home Loan in Your City?',
   heroHighlight: 'From ₹15 Lakhs to ₹10 Crores • Instant In-Principle Eligibility Check',
   lowestRate: '8.40%',
-  stampDutyNote: 'Gujarat Stamp Duty: 4.9% for male buyers, 3.9% for female buyers + 1% registration fee.',
-  regulatoryAuthority: 'AUDA & AMC (RERA Gujarat)',
-  topCorridors: ['SG Highway', 'South Bopal & Shela', 'Gota & Vaishnodevi', 'GIFT City / Gandhinagar', 'Prahlad Nagar & Thaltej'],
+  stampDutyNote: 'Standard stamp duty and registration fees generally range between 5%–7% depending on the state and municipal jurisdiction. Many states offer concessions on basic stamp duty for women primary buyers.',
+  regulatoryAuthority: 'RERA & Local Authority',
   propertyPresets: [
     {
-      locality: 'Gota / Chandlodiya',
-      propertyType: '2 BHK Affordable Apartment',
+      propertyType: '2 BHK Compact Apartment',
       price: 4500000,
       typicalLoan: 3600000,
       estimatedEmi: 31050,
     },
     {
-      locality: 'South Bopal / Shela',
-      propertyType: '3 BHK High-Rise Residence',
+      propertyType: '3 BHK Premium Residence',
       price: 7500000,
       typicalLoan: 6000000,
       estimatedEmi: 51750,
     },
     {
-      locality: 'SG Highway / Bodakdev',
-      propertyType: '4 BHK Luxury Apartment / Bungalow',
+      propertyType: '4 BHK Luxury Home / Villa',
       price: 15000000,
       typicalLoan: 12000000,
       estimatedEmi: 103500,
@@ -61,44 +51,44 @@ const AHMEDABAD_CONFIG: LocationLandingConfig = {
   ],
   localConsiderations: [
     {
-      title: 'AUDA vs AMC Zoning & Permissions',
-      desc: 'Properties in peripheral zones (e.g. Shela, South Bopal, Godhavi) fall under AUDA, whereas core city properties fall under AMC. Ensure the project possesses clear Town Planning (TP) scheme clearance and valid Building Use (BU) permissions.',
+      title: 'Municipal & Development Authority Approvals',
+      desc: 'Ensure your chosen residential project possesses verified Town Planning scheme clearance, Commencement Certificate (CC), and Building Use (BU) permissions from the local municipal corporation or development authority.',
     },
     {
-      title: 'Gujarat Stamp Duty & Concessions',
-      desc: 'Gujarat offers a 1% stamp duty concession for female property purchasers (3.9% vs 4.9% for male applicants), helping couples save up to ₹1,00,000 on a ₹1 Crore property registration.',
+      title: 'State RERA Registration Compliance',
+      desc: 'All ongoing builder projects must be registered with their respective State RERA authority. Lenders verify the project RERA registration number before releasing construction-linked loan disbursements.',
     },
     {
-      title: 'RERA Gujarat (GujRERA) Compliance',
-      desc: 'All under-construction builder projects in Ahmedabad must be registered with GujRERA. Lenders require the PR/GJ registration number before approving builder tie-ups.',
+      title: 'Title Clearance & 30-Year Search Report',
+      desc: 'For independent houses, plots, or societies undergoing redevelopment, lenders require a certified 30-year title search certificate from an empanelled legal advocate to confirm unencumbered ownership.',
     },
     {
-      title: 'Title Clearance & 30-Year Search Certificate',
-      desc: 'For independent bungalows or old Ahmedabad societies undergoing redevelopment, nationalized and private banks require a certified 30-year title search certificate from a registered advocate.',
+      title: 'Encumbrance Certificate & Property Tax Receipts',
+      desc: 'Confirm the seller holds a Nil Encumbrance Certificate (EC) and up-to-date municipal property tax paid receipts to guarantee no pending legal dues or prior undisclosed mortgages on the property.',
     },
   ],
   faqs: [
     {
-      q: 'What is the minimum salary required for a home loan in Ahmedabad?',
-      a: 'Most banks in Ahmedabad require a minimum net monthly salary of ₹25,000 for salaried employees. Self-employed business owners should show a minimum annual gross income of ₹3,00,000 via audited ITRs.',
+      q: 'What is the minimum salary required for a home loan?',
+      a: 'Most partner lenders require a minimum net monthly in-hand salary of ₹25,000 for salaried applicants. Self-employed business owners should show a minimum annual net profit of ₹3,00,000 via audited ITRs.',
     },
     {
-      q: 'Which banks offer the best home loan interest rates in Ahmedabad?',
-      a: 'Top lenders in Ahmedabad include SBI, HDFC Bank, ICICI Bank, Bank of Baroda, and Kotak Mahindra Bank, with floating rates currently starting from 8.40% to 8.65% for borrowers with CIBIL score 750+.',
+      q: 'How much funding (LTV) can I get for a property purchase?',
+      a: 'Per RBI guidelines, borrowers can obtain up to 90% loan-to-value for loans up to ₹30 Lakhs, up to 80% for loans between ₹30 Lakhs to ₹75 Lakhs, and up to 75% for loans above ₹75 Lakhs.',
     },
     {
-      q: 'Can I get a home loan for a property in GIFT City / Gandhinagar corridor?',
-      a: 'Yes, almost all leading private and PSU banks have dedicated branch tie-ups and pre-approved project sanctions for residential complexes along the GIFT City SEZ and SG Highway corridors.',
+      q: 'Are under-construction properties eligible for bank home loans?',
+      a: 'Yes, under-construction residential properties with verified state RERA registrations and lender-approved project sanctions are eligible for construction-linked disbursement home loans.',
     },
     {
-      q: 'How much funding (LTV) can I get for a property in Gujarat?',
-      a: 'Per RBI guidelines, you can obtain up to 90% loan-to-value for loans up to ₹30 Lakhs, up to 80% for loans between ₹30 Lakhs to ₹75 Lakhs, and up to 75% for loans above ₹75 Lakhs.',
+      q: 'How fast does home loan sanction and disbursal take?',
+      a: 'With complete KYC, income records, and clear property title documents, in-principle sanction typically takes 3 to 5 business days, followed by technical valuation and final disbursal.',
     },
   ],
 };
 
 export const LocationLandingExperiment: React.FC = () => {
-  const [config] = useState<LocationLandingConfig>(AHMEDABAD_CONFIG);
+  const [config] = useState<LocationLandingConfig>(GENERIC_LOCATION_CONFIG);
   const [selectedPropertyIndex, setSelectedPropertyIndex] = useState<number>(1);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
@@ -106,7 +96,8 @@ export const LocationLandingExperiment: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>('');
   const [userPhone, setUserPhone] = useState<string>('');
-  const [propertyBudget, setPropertyBudget] = useState<string>('60-80L');
+  const [userCity, setUserCity] = useState<string>(''); // Completely blank initial value
+  const [propertyBudget, setPropertyBudget] = useState<string>('50-80L');
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
   const formatCurrency = (val: number): string => {
@@ -123,39 +114,28 @@ export const LocationLandingExperiment: React.FC = () => {
 
   const handleMockSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!userName || !userPhone) return;
     setIsSubmitted(true);
+  };
+
+  const handleResetModal = () => {
+    setUserName('');
+    setUserPhone('');
+    setUserCity('');
+    setPropertyBudget('50-80L');
+    setIsSubmitted(false);
+    setIsModalOpen(false);
   };
 
   return (
     <div className="loc-landing-container">
-      {/* City Switcher Simulation Bar */}
-      <div className="loc-city-switcher-bar">
-        <span>📍 <strong>Location Architecture Experiment:</strong> Reusable City Template</span>
-        <div className="loc-city-pills">
-          <button type="button" className="loc-city-pill active">
-            Ahmedabad
-          </button>
-          <button type="button" className="loc-city-pill" title="Future expansion target">
-            Surat (Future)
-          </button>
-          <button type="button" className="loc-city-pill" title="Future expansion target">
-            Vadodara (Future)
-          </button>
-          <button type="button" className="loc-city-pill" title="Future expansion target">
-            Mumbai (Future)
-          </button>
-        </div>
-      </div>
-
       {/* Hero Section */}
       <section className="loc-hero">
         <div className="loc-hero-badge">
-          <span>🏠</span> Home Loans in {config.cityName}
+          <span>🏠</span> Location Guide
         </div>
         <h1 className="loc-hero-title">{config.tagline}</h1>
         <p className="loc-hero-desc">
-          Compare 15+ top lending banks &amp; NBFCs across Ahmedabad. Enjoy transparent processing, minimal documentation, and doorstep assistance across all major residential growth corridors.
+          Local insights, property guidelines, and step-by-step assistance in your area. Understand your estimated eligibility and available financing options.
         </p>
 
         <button
@@ -166,12 +146,12 @@ export const LocationLandingExperiment: React.FC = () => {
             setIsSubmitted(false);
           }}
         >
-          Check My Eligibility &rarr;
+          Check Home Loan Options &rarr;
         </button>
 
         <div className="loc-hero-stats-row">
           <div className="loc-stat-item">
-            <span className="loc-stat-num">From {config.lowestRate}</span>
+            <span className="loc-stat-num">From {config.lowestRate}*</span>
             <span className="loc-stat-desc">Starting Interest Rate</span>
           </div>
           <div className="loc-stat-item">
@@ -189,17 +169,17 @@ export const LocationLandingExperiment: React.FC = () => {
         </div>
       </section>
 
-      {/* Local Ahmedabad Buyer Considerations */}
+      {/* Property Buyer Considerations */}
       <section className="loc-section">
         <h2 className="loc-section-title">
-          <span>🏙️</span> Important Considerations for {config.cityName} Property Buyers
+          <span>🏙️</span> Important Considerations for Property Buyers
         </h2>
         <p className="loc-section-desc">
-          Essential legal and municipal guidelines for purchasing real estate across Ahmedabad and surrounding urban development zones.
+          Essential legal and municipal guidelines for purchasing residential real estate.
         </p>
 
         <div className="loc-local-box">
-          <h4>💡 Gujarat Stamp Duty Insight:</h4>
+          <h4>💡 Stamp Duty &amp; Registration Insight:</h4>
           <p>{config.stampDutyNote}</p>
         </div>
 
@@ -217,7 +197,7 @@ export const LocationLandingExperiment: React.FC = () => {
       {/* Property EMI Example Matrix */}
       <section className="loc-section">
         <h2 className="loc-section-title">
-          <span>📊</span> Example Property Budgets &amp; Monthly EMIs in {config.cityName}
+          <span>📊</span> Example Property Budgets &amp; Monthly EMIs
         </h2>
         <p className="loc-section-desc">
           Illustrative calculations for popular property configurations based on a 20-year tenure at 8.45% p.a.
@@ -226,11 +206,11 @@ export const LocationLandingExperiment: React.FC = () => {
         <div className="loc-property-presets">
           {config.propertyPresets.map((preset, idx) => (
             <div
-              key={preset.locality}
+              key={preset.propertyType}
               className={`loc-property-card ${selectedPropertyIndex === idx ? 'active' : ''}`}
               onClick={() => setSelectedPropertyIndex(idx)}
             >
-              <div className="loc-property-locality">{preset.locality}</div>
+              <div className="loc-property-locality">Popular Tier</div>
               <div className="loc-property-name">{preset.propertyType}</div>
               <div className="loc-property-price">{formatCurrency(preset.price)}</div>
               <div className="loc-property-emi">
@@ -247,10 +227,10 @@ export const LocationLandingExperiment: React.FC = () => {
       {/* Eligibility & Required Documents */}
       <section className="loc-section">
         <h2 className="loc-section-title">
-          <span>📋</span> Eligibility Criteria &amp; Documentation
+          <span>📋</span> Eligibility Criteria for Home Loan Borrowers
         </h2>
         <p className="loc-section-desc">
-          Simple, streamlined checklist for salaried professionals and self-employed Gujarat entrepreneurs.
+          Simple, streamlined checklist for salaried professionals and self-employed applicants.
         </p>
 
         <div className="loc-cards-grid">
@@ -259,7 +239,7 @@ export const LocationLandingExperiment: React.FC = () => {
             <h3 className="loc-feature-card-title">Salaried Borrowers</h3>
             <ul style={{ fontSize: '0.8125rem', color: '#475569', paddingLeft: '18px', lineHeight: 1.6 }}>
               <li>Age: 21 to 65 years</li>
-              <li>Min Income: ₹25,000/month</li>
+              <li>Min Income: ₹25,000/month in-hand</li>
               <li>Last 3 Months Salary Slips</li>
               <li>6 Months Bank Statement</li>
               <li>Form 16 / Last 2 Years ITR</li>
@@ -268,13 +248,13 @@ export const LocationLandingExperiment: React.FC = () => {
 
           <div className="loc-feature-card">
             <div className="loc-feature-card-icon">🏢</div>
-            <h3 className="loc-feature-card-title">Self-Employed / Traders</h3>
+            <h3 className="loc-feature-card-title">Self-Employed / Business</h3>
             <ul style={{ fontSize: '0.8125rem', color: '#475569', paddingLeft: '18px', lineHeight: 1.6 }}>
               <li>Age: 23 to 68 years</li>
-              <li>Business Continuity: 3+ Years</li>
-              <li>Last 3 Years Audited ITR + Balance Sheet</li>
-              <li>12 Months Current Account Statement</li>
-              <li>GST Registration Certificate</li>
+              <li>Business Continuity: 2–3 Years</li>
+              <li>Last 2–3 Years Audited ITR + Computation</li>
+              <li>12 Months Primary Bank Statement</li>
+              <li>GST / Business Registration Proof</li>
             </ul>
           </div>
 
@@ -283,10 +263,10 @@ export const LocationLandingExperiment: React.FC = () => {
             <h3 className="loc-feature-card-title">Property Documents</h3>
             <ul style={{ fontSize: '0.8125rem', color: '#475569', paddingLeft: '18px', lineHeight: 1.6 }}>
               <li>Allotment Letter / Agreement to Sell</li>
-              <li>Sanctioned Building Plan (AMC/AUDA)</li>
-              <li>RERA Gujarat Project ID</li>
+              <li>Sanctioned Building Plan from Authority</li>
+              <li>RERA Project Registration Certificate</li>
               <li>NOC from Builder / Society</li>
-              <li>30-Year Title Search Report</li>
+              <li>30-Year Title Search Report / Deed</li>
             </ul>
           </div>
         </div>
@@ -305,24 +285,24 @@ export const LocationLandingExperiment: React.FC = () => {
           <div className="loc-step-item">
             <div className="loc-step-num">1</div>
             <div>
-              <div className="loc-step-title">Online Application &amp; Multi-Bank Check</div>
-              <div className="loc-step-desc">Submit your income details to compare offers across 15+ participating bank partners.</div>
+              <div className="loc-step-title">Online Application &amp; Eligibility Check</div>
+              <div className="loc-step-desc">Submit your basic details to understand your borrowing capacity and suitable options.</div>
             </div>
           </div>
 
           <div className="loc-step-item">
             <div className="loc-step-num">2</div>
             <div>
-              <div className="loc-step-title">Doorstep Document Pickup &amp; KYC</div>
-              <div className="loc-step-desc">Our dedicated loan advisor assists with document collection and initial KYC processing.</div>
+              <div className="loc-step-title">Document Pickup &amp; KYC Verification</div>
+              <div className="loc-step-desc">Our dedicated advisory specialist assists with digital or doorstep document collection.</div>
             </div>
           </div>
 
           <div className="loc-step-item">
             <div className="loc-step-num">3</div>
             <div>
-              <div className="loc-step-title">Technical &amp; Legal Verification</div>
-              <div className="loc-step-desc">Bank legal team inspects property title, AUDA/AMC approvals, and structural valuation.</div>
+              <div className="loc-step-title">Technical &amp; Legal Property Valuation</div>
+              <div className="loc-step-desc">The lender conducts property appraisal, municipal plan check, and legal title clearance.</div>
             </div>
           </div>
 
@@ -330,7 +310,7 @@ export const LocationLandingExperiment: React.FC = () => {
             <div className="loc-step-num">4</div>
             <div>
               <div className="loc-step-title">Formal Loan Sanction Letter</div>
-              <div className="loc-step-desc">Receive official sanction letter with approved loan amount, interest rate, and tenure.</div>
+              <div className="loc-step-desc">Receive your formal sanction letter detailing approved loan amount, rate, and tenure.</div>
             </div>
           </div>
 
@@ -338,7 +318,7 @@ export const LocationLandingExperiment: React.FC = () => {
             <div className="loc-step-num">5</div>
             <div>
               <div className="loc-step-title">Agreement Signing &amp; Disbursal</div>
-              <div className="loc-step-desc">Sign loan agreement, execute sub-registrar registration, and receive direct disbursement.</div>
+              <div className="loc-step-desc">Complete loan agreement execution and funds are disbursed to builder or seller.</div>
             </div>
           </div>
         </div>
@@ -347,7 +327,7 @@ export const LocationLandingExperiment: React.FC = () => {
       {/* FAQs */}
       <section className="loc-section">
         <h2 className="loc-section-title">
-          <span>❓</span> Frequently Asked Questions — {config.cityName}
+          <span>❓</span> Frequently Asked Questions
         </h2>
 
         <div style={{ marginTop: '16px' }}>
@@ -373,9 +353,9 @@ export const LocationLandingExperiment: React.FC = () => {
 
       {/* Bottom CTA Banner */}
       <div className="loc-bottom-cta">
-        <h3>Ready to buy your dream home in {config.cityName}?</h3>
+        <h3>Ready to finance your property?</h3>
         <p>
-          Speak with our local Ahmedabad home loan specialists today. 100% free consultation with no obligation.
+          Speak with our home loan specialists today. 100% free consultation with no obligation.
         </p>
         <button
           type="button"
@@ -385,7 +365,7 @@ export const LocationLandingExperiment: React.FC = () => {
             setIsSubmitted(false);
           }}
         >
-          Check My Eligibility &rarr;
+          Check Home Loan Options &rarr;
         </button>
       </div>
 
@@ -408,10 +388,10 @@ export const LocationLandingExperiment: React.FC = () => {
               <div className="lowest-emi-success-view">
                 <div className="lowest-emi-success-icon">🏡</div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '8px' }}>
-                  Mock Ahmedabad Lead Recorded!
+                  Mock Eligibility Request Received!
                 </h3>
                 <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '20px', lineHeight: 1.5 }}>
-                  In production, our Ahmedabad branch advisor would contact <strong>{userName}</strong> ({userPhone}) for property budget <strong>{propertyBudget}</strong>.
+                  In production, our advisor would contact <strong>{userName}</strong> ({userPhone}) for property in <strong>{userCity || 'Your City'}</strong> with budget <strong>{propertyBudget}</strong>.
                 </p>
                 <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', fontSize: '0.75rem', color: '#475569', marginBottom: '16px' }}>
                   🔒 <em>No Supabase lead created. Local mock state only.</em>
@@ -419,7 +399,7 @@ export const LocationLandingExperiment: React.FC = () => {
                 <button
                   type="button"
                   className="lowest-emi-calc-btn"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={handleResetModal}
                 >
                   Close Demo
                 </button>
@@ -427,10 +407,10 @@ export const LocationLandingExperiment: React.FC = () => {
             ) : (
               <div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '6px', color: '#0f172a' }}>
-                  Check Home Loan Eligibility in Ahmedabad
+                  Check Home Loan Eligibility
                 </h3>
                 <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '20px' }}>
-                  Get custom quotes from top participating bank branches in Ahmedabad.
+                  Get custom options from participating lenders in your city.
                 </p>
 
                 <form onSubmit={handleMockSubmit}>
@@ -444,7 +424,7 @@ export const LocationLandingExperiment: React.FC = () => {
                       className="lowest-emi-input"
                       value={userName}
                       onChange={(e) => setUserName(e.target.value)}
-                      placeholder="e.g. Jignesh Shah"
+                      placeholder="Your Name"
                       required
                     />
                   </div>
@@ -466,6 +446,20 @@ export const LocationLandingExperiment: React.FC = () => {
                   </div>
 
                   <div className="lowest-emi-form-group">
+                    <label htmlFor="locUserCity" className="lowest-emi-label">
+                      City
+                    </label>
+                    <input
+                      id="locUserCity"
+                      type="text"
+                      className="lowest-emi-input"
+                      value={userCity}
+                      onChange={(e) => setUserCity(e.target.value)}
+                      placeholder="Your City"
+                    />
+                  </div>
+
+                  <div className="lowest-emi-form-group">
                     <label htmlFor="locBudget" className="lowest-emi-label">
                       Estimated Property Budget
                     </label>
@@ -477,8 +471,8 @@ export const LocationLandingExperiment: React.FC = () => {
                     >
                       <option value="30-50L">₹30 Lakhs – ₹50 Lakhs (Affordable 2BHK)</option>
                       <option value="50-80L">₹50 Lakhs – ₹80 Lakhs (3BHK / Mid-segment)</option>
-                      <option value="80L-1.5Cr">₹80 Lakhs – ₹1.50 Crore (Premium / SG Highway)</option>
-                      <option value="1.5Cr+">₹1.50 Crore+ (Luxury Villa / Penthouse)</option>
+                      <option value="80L-1.5Cr">₹80 Lakhs – ₹1.50 Crore (Premium)</option>
+                      <option value="1.5Cr+">₹1.50 Crore+ (Luxury Home / Villa)</option>
                     </select>
                   </div>
 

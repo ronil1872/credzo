@@ -50,6 +50,7 @@ export const EducationLoanExperiment: React.FC<EducationLoanExperimentProps> = (
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [studentName, setStudentName] = useState<string>('');
   const [studentPhone, setStudentPhone] = useState<string>('');
+  const [studentCity, setStudentCity] = useState<string>(''); // Completely blank initial value
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
   // Calculation: Tuition + Living - Existing Funding = Required Loan
@@ -391,7 +392,7 @@ export const EducationLoanExperiment: React.FC<EducationLoanExperimentProps> = (
                       className="lowest-emi-input"
                       value={studentName}
                       onChange={(e) => setStudentName(e.target.value)}
-                      placeholder="e.g. Ananya Patel"
+                      placeholder="Your Name"
                       required
                     />
                   </div>
@@ -409,6 +410,20 @@ export const EducationLoanExperiment: React.FC<EducationLoanExperimentProps> = (
                       placeholder="9876543210"
                       maxLength={10}
                       required
+                    />
+                  </div>
+
+                  <div className="lowest-emi-form-group">
+                    <label htmlFor="studentCity" className="lowest-emi-label">
+                      City
+                    </label>
+                    <input
+                      id="studentCity"
+                      type="text"
+                      className="lowest-emi-input"
+                      value={studentCity}
+                      onChange={(e) => setStudentCity(e.target.value)}
+                      placeholder="Your City"
                     />
                   </div>
 

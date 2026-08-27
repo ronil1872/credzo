@@ -1,4 +1,5 @@
 export type ExperimentId = 
+  | 'customer-homepage'
   | 'lowest-emi'
   | 'education-loan'
   | 'location-landing'
@@ -15,4 +16,5 @@ export interface ExperimentMetadata {
   status: ExperimentStatus;
   estimatedEffort: string;
   tags: string[];
+  isPrimary?: boolean;
 }

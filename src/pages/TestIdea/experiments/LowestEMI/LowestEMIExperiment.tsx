@@ -12,6 +12,7 @@ export const LowestEMIExperiment: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [leadName, setLeadName] = useState<string>('');
   const [leadPhone, setLeadPhone] = useState<string>('');
+  const [leadCity, setLeadCity] = useState<string>(''); // Completely blank initial value
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
 
   // Helper EMI calculation
@@ -326,7 +327,7 @@ export const LowestEMIExperiment: React.FC = () => {
                       className="lowest-emi-input"
                       value={leadName}
                       onChange={(e) => setLeadName(e.target.value)}
-                      placeholder="e.g. Rahul Sharma"
+                      placeholder="Your Name"
                       required
                     />
                   </div>
@@ -344,6 +345,20 @@ export const LowestEMIExperiment: React.FC = () => {
                       placeholder="9876543210"
                       maxLength={10}
                       required
+                    />
+                  </div>
+
+                  <div className="lowest-emi-form-group">
+                    <label htmlFor="leadCity" className="lowest-emi-label">
+                      City
+                    </label>
+                    <input
+                      id="leadCity"
+                      type="text"
+                      className="lowest-emi-input"
+                      value={leadCity}
+                      onChange={(e) => setLeadCity(e.target.value)}
+                      placeholder="Your City"
                     />
                   </div>
 
