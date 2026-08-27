@@ -79,18 +79,50 @@ export const LoginPage: React.FC = () => {
 
     setIsSubmitting(true);
 
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Safe, non-sensitive diagnostic telemetry (NEVER logs actual password values)
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasDigit = /[0-9]/.test(password);
+    const hasSpecial = /[^A-Za-z0-9\s]/.test(password);
+    const hasWhitespace = /\s/.test(password);
+    const utf8ByteLength = new TextEncoder().encode(password).length;
+
+    console.info('[Credzo Auth Diagnostic]', {
+      browser: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+      url: typeof window !== 'undefined' ? window.location.pathname : '',
+      emailLength: email.length,
+      emailTrimmedLength: normalizedEmail.length,
+      emailWasNormalized: email !== normalizedEmail,
+      passwordLength: password.length,
+      passwordByteLength: utf8ByteLength,
+      hasUpper,
+      hasLower,
+      hasDigit,
+      hasSpecial,
+      hasWhitespace,
+      hasLeadingOrTrailingSpace: password !== password.trim(),
+    });
+
     try {
-      const res = await signInWithEmail(email, password);
+      const res = await signInWithEmail(normalizedEmail, password);
 
       if (res.isLocked) {
         const secs = res.remainingSeconds || 900;
         setLockoutSeconds(secs);
         setErrorMsg(`Too many failed login attempts. Please try again in ${formatCountdown(secs)}.`);
+        console.warn('[Credzo Auth Diagnostic Result] Account locked', { remainingSeconds: secs });
         setIsSubmitting(false);
         return;
       }
 
       if (res.error) {
+        console.warn('[Credzo Auth Diagnostic Result] Auth failed', {
+          error: res.error.message,
+          failedAttempts: res.failedAttempts,
+          remainingAttempts: res.remainingAttempts,
+        });
         setLockoutSeconds(null);
         const remaining =
           res.remainingAttempts !== undefined
@@ -123,7 +155,8 @@ export const LoginPage: React.FC = () => {
 
       // Successful login -> Redirect to destination
       navigate(from, { replace: true });
-    } catch {
+    } catch (err: unknown) {
+      console.error('[Credzo Auth Diagnostic Result] Unhandled login exception:', err);
       setErrorMsg('An unexpected error occurred. Please try again.');
       setIsSubmitting(false);
     }

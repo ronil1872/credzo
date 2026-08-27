@@ -184,39 +184,8 @@ serve(async (req: Request) => {
     }
 
     // 7. Secure Temporary Password Generation & Auth User Creation
-    // Generates a cryptographically secure 18-character temporary password (well within Bcrypt 72-byte limit)
-    function generateSecureTemporaryPassword(): string {
-      const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-      const lowercase = 'abcdefghijkmnpqrstuvwxyz';
-      const numbers = '23456789';
-      const symbols = '!@#$%&*?';
-      const allChars = uppercase + lowercase + numbers + symbols;
-
-      const values = new Uint8Array(18);
-      crypto.getRandomValues(values);
-
-      const passwordArray = [
-        uppercase[values[0] % uppercase.length],
-        lowercase[values[1] % lowercase.length],
-        numbers[values[2] % numbers.length],
-        symbols[values[3] % symbols.length],
-      ];
-
-      for (let i = 4; i < 18; i++) {
-        passwordArray.push(allChars[values[i] % allChars.length]);
-      }
-
-      const shuffleValues = new Uint8Array(passwordArray.length);
-      crypto.getRandomValues(shuffleValues);
-      for (let i = passwordArray.length - 1; i > 0; i--) {
-        const j = shuffleValues[i] % (i + 1);
-        [passwordArray[i], passwordArray[j]] = [passwordArray[j], passwordArray[i]];
-      }
-
-      return passwordArray.join('');
-    }
-
-    const temporaryPassword = generateSecureTemporaryPassword();
+    // Generates a cryptographically secure 40-character temporary password (crypto.randomUUID() + '!Aa1', well within Bcrypt 72-byte limit)
+    const temporaryPassword = crypto.randomUUID() + '!Aa1';
 
     console.log('[admin-create-user] Calling supabaseAdmin.auth.admin.createUser...');
     const createAuthRes = await supabaseAdmin.auth.admin.createUser({

@@ -52,6 +52,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/admin/login" element={<LoginPage />} />
+          <Route path="/admin/login-temp" element={<LoginPage />} />
           <Route path="/admin/reset-password" element={<ResetPasswordPage />} />
           <Route path="/admin/change-password" element={<ChangePasswordPage />} />
           <Route path="*" element={<NotFoundPage />} />

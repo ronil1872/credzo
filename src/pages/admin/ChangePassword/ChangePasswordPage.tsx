@@ -52,8 +52,6 @@ export const ChangePasswordPage: React.FC = () => {
 
     try {
       // 1. Update permanent password in Supabase Auth GoTrue
-      // When this succeeds, the PostgreSQL on_auth_user_password_changed trigger
-      // atomically resets must_change_password = false on public.profiles.
       const { error: authError } = await supabase.auth.updateUser({
         password: password,
       });
@@ -64,17 +62,32 @@ export const ChangePasswordPage: React.FC = () => {
         return;
       }
 
-      // 2. Sync user metadata for GoTrue session cache
+      // 2. Explicitly mark must_change_password = false in profiles table
+      if (user?.id) {
+        const { error: profileUpdateError } = await supabase
+          .from('profiles')
+          .update({
+            must_change_password: false,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id);
+
+        if (profileUpdateError) {
+          console.warn('[Credzo Security] Direct profile update notice:', profileUpdateError.message);
+        }
+      }
+
+      // 3. Sync user metadata for GoTrue session cache
       await supabase.auth.updateUser({
         data: { must_change_password: false },
       }).catch(() => {});
 
-      // 3. Refresh user profile in React Auth Context
+      // 4. Refresh user profile in React Auth Context
       await refreshProfile();
 
       setSuccess(true);
 
-      // 4. Redirect to CRM Dashboard after brief confirmation
+      // 5. Redirect to CRM Dashboard after brief confirmation
       setTimeout(() => {
         navigate('/admin', { replace: true });
       }, 1200);

@@ -80,7 +80,7 @@ export const AddTeamMemberModal: React.FC<AddTeamMemberModalProps> = ({
   const handleCopyAllCredentials = async () => {
     if (!createdCredentials) return;
     try {
-      const loginUrl = `${window.location.origin}/admin/login`;
+      const loginUrl = `${window.location.origin}/admin/login-temp`;
       const textToCopy = `Credzo CRM Login Credentials:
 Name: ${createdCredentials.fullName}
 Role: ${createdCredentials.role}
